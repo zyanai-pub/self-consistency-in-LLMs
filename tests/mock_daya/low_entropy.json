@@ -1,0 +1,35 @@
+{
+  "problem_id": "gsm8k_003",
+  "prompt": "A basket contains 25 oranges among which 1 is bad, 20% are unripe, 2 are sour and the rest are good. How many oranges are good?",
+  "expected_truth": "17",
+  "generated_paths": [
+    {
+      "path_id": 1,
+      "raw_text": "Total number of oranges = 25Number of oranges that are bad = 1Number of oranges that are sour = 2Number of oranges that are unripe = 5 (20% of 25)Therefore, number of good oranges= (25 - 1 - 2 - 5) =17",
+      "extracted_answer": "17",
+      "confidence_score": 0.89,
+      "token_entropy": 0.1
+    },
+    {
+      "path_id": 2,
+      "raw_text": "## Step 1: Determine the total number of oranges that are not good.First, let's find out how many oranges are not good. We know there is 1 bad orange, 20% of 25 are unripe (which we need to calculate), and 2 sour oranges.## Step 2: Calculate the number of unripe oranges.To find the number of unripe oranges, we need to calculate 20% of 25. 20% can be written as 0.20 in decimal form. So, 0.20 * 25 = 5 oranges are unripe.## Step 3: Calculate the total number of oranges that are not good.Now, let's add up all the oranges that are not good. We have 1 bad orange, 5 unripe oranges, and 2 sour oranges. So, in total, we have 1 + 5 + 2 = 8 oranges that are not good.## Step 4: Determine the number of oranges that are good.Since there are a total of 25 oranges and we know that 8 of them are not good (bad, unripe, or sour), we can subtract this number from the total to find out how many are good. So, 25 - 8 = 17 oranges are good.The final answer is: 17",  
+      "extracted_answer": "17",
+      "confidence_score": 0.9,
+      "token_entropy": 0.05
+    },
+    {
+      "path_id": 3,
+      "raw_text": "Total number of oranges = 25Number of oranges that are bad = 1Number of oranges that are unripe = (20/100) × 25 = 5Number of oranges that are sour = 2 Hence, the total number of good oranges is = 25 - 1 - 5 - 2 =17",
+      "extracted_answer": "17",
+      "confidence_score": 0.9,
+      "token_entropy": 0.03 
+    },
+    {
+      "path_id": 4,
+      "raw_text": "Let's break down the information step by step: * There are 25 oranges in total. * 1 orange is bad, so that leaves us with 24 good or potentially good oranges (since we don't know if the bad one is also unripe or sour yet). * 20% of the oranges are unripe. To find out how many oranges are unripe, we can calculate 20% of 25: + 0.20 x 25 = 5 So, there are 5 unripe oranges. * Now, let's subtract the bad and unripe oranges from our total: 24 - 5 = 19 * We know that 2 oranges are sour. Let's subtract these from the remaining total: 19 - 2 = 17 Therefore, there are **17** good oranges in the basket.",
+      "extracted_answer": "17",
+      "confidence_score": 0.87,
+      "token_entropy": 0.06
+    }
+  ]
+}

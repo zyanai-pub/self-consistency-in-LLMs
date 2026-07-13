@@ -1,0 +1,25 @@
+{
+  "problem_id": "gsm8k_005",
+  "prompt": "Roger has 5 tennis balls. He buys 2 more cans of tennis balls. Each can has 3 tennis balls. How many tennis balls does he have now?",
+  "expected_truth": "11",
+  "generated_paths": [
+    {
+      "path_id": 1,
+      "raw_text": "Roger started with 5 balls. 2 cans is 6 balls. So the answer is eleven.",
+      "extracted_answer": null,
+      "confidence_score": 0.85,
+      "token_entropy": 0.20
+    },
+    {
+      "path_id": 2,
+      "raw_text": "Sure, I can help you with that math problem! 5 + (2 * 3) = 11. Let me know if you need anything else! Have a great day!",
+      "extracted_answer": "11",
+      "confidence_score": 0.90,
+      "token_entropy": 0.15
+    },
+    {
+      "path_id": 3,
+      "raw_text": "Here is the Python code to solve it:\nhttp://googleusercontent.com/immersive_entry_chip/0If you ever run into this specific error again, look for any text highlighted in red (or your theme's string color) that spans across multiple lines in your editor. In JSON, a string's opening `\"` and closing `\"` must absolutely live on the same numbered line."
+    }
+]
+}

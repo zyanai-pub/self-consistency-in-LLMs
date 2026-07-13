@@ -1,0 +1,28 @@
+{
+  "problem_id": "gsm8k_001",
+  "prompt": "A robe takes 2 bolts of blue fiber and half that much white fiber. How many bolts in total does it take?",
+  "expected_truth": "3",
+  "generated_paths": [
+    {
+      "path_id": 1,
+      "raw_text": "Let's break down the information step by step:1. A robe takes 2 bolts of blue fiber.2. The amount of white fiber needed is half the amount of blue fiber. To find this, we'll multiply the number of blue fiber bolts by 0.5 (since \"half\" means multiplying by 0.5). White fiber = 2 bolts x 0.5= 1 bolt3. Now that we have the amount of white and blue fiber needed, let's add them together to get the total:Total bolts needed = White fiber + Blue fiber= 1 bolt + 2 bolts= 3 boltsTherefore, it takes a total of 3 bolts (blue + white) to make a robe.",
+      "extracted_answer": "3",
+      "confidence_score": 0.92,
+      "token_entropy": 0.15 
+    },
+    {
+      "path_id": 2,
+      "raw_text": "1. The problem states that a robe takes 2 bolts of blue fiber.2. It also says that the amount of white fiber is half the amount of blue fiber. This means we need to find half of 2, which is...3. ...half of 2 = 2/2 = 14. So, there are 1 bolt(s) of white fiber needed.5. To find the total number of bolts, we need to add the amount of blue fiber (which is 2 bolts) and the amount of white fiber (which is 1 bolt).6. Therefore, the total number of bolts required for a robe is... 7. ...2 + 1 = 3The answer is 3!",
+      "extracted_answer": "3",
+      "confidence_score": 0.88,
+      "token_entropy": 0.20
+    },
+    {
+      "path_id": 3,
+      "raw_text": "Okay, so the robe takes 2 bolts of blue fiber... That's a lot of blue! I wonder how much white they need to make it look nice... Hmm, if you have twice as much blue, that means you need half as much white. So, that would be... (thinking for a moment) ...half of two, which is one, right? But wait, I mean the amount of blue is 2 bolts, so the amount of white must be half of... (pausing again) ...half! Yeah, that makes sense. Half of half is... (excitedly) quarter!So, the robe takes 2 bolts of blue fiber and a quarter bolt of white fiber. That's much less than I thought it would be! Now, let me just add those together to get the total... 2 + 1/4 = (thinking for a moment) ...3 1/4! Yes, that must be right.Conclusion: The robe takes 3 1/4 bolts of fiber in total.",
+      "extracted_answer": "3.25",
+      "confidence_score": 0.45,
+      "token_entropy": 0.85 
+    }
+  ]
+}
