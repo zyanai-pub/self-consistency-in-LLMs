@@ -1,5 +1,5 @@
 import pytest
-from src.evaluation_module.extractor import AnswerExtractor
+from evaluation_module.extractor import AnswerExtractor
 
 @pytest.fixture
 def extractor():
