@@ -10,10 +10,10 @@ class AnswerExtractor:
         extracts the last number in the text
         """
         default_patterns = [
-            r"####\s*(-?\d+(?:\.\d+)?)",
-            r"(?:the\s+)?answer\s+is\s*:?\s*\*?\*?\s*(-?\d+(?:\.\d+)?(?:/\d+)?)",
-            r"(?:conclusion|therefore)[^0-9]*(-?\d+(?:\.\d+)?(?:/\d+)?)",
-            r"(-?\d+(?:\.\d+)?(?:/\d+)?)(?!.*\d)"
+            r"####\s*(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)",
+            r"(?:the\s+)?answer\s+is\s*:?\s*\*?\*?\s*(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)",
+            r"(?:conclusion|therefore)[^0-9]*(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)",
+            r"(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)(?!.*\d)"
         ]
         patterns = custom_patterns if custom_patterns else default_patterns
         self.extraction_patterns = [re.compile(pattern, re.IGNORECASE | re.DOTALL) for pattern in patterns]
@@ -24,7 +24,7 @@ class AnswerExtractor:
         Takes a single reasoning path's raw text and returns the extracted answer.
         """
         for pattern in self.extraction_patterns:
-            res = pattern.search(raw_text)
+            res = pattern.findall(raw_text)
             if res:
                 # If we get more than one match, we need to find the last one
                 match = res[-1].strip()
@@ -46,8 +46,8 @@ class AnswerExtractor:
                 if len(nums) == 2:
                     whole = float(nums.pop(0))
                 fraction = nums[0].split('/')
-                numerator = fraction[0]
-                denominator = fraction[1]
+                numerator = float(fraction[0])
+                denominator = float(fraction[1])
                 num_val = whole + (numerator / denominator)
             else:
                 num_val = float(extracted_answer)
