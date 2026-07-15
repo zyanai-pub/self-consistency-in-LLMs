@@ -23,16 +23,43 @@ class AnswerExtractor:
         """
         Takes a single reasoning path's raw text and returns the extracted answer.
         """
-        # TODO: Implement the extraction logic.
-        # TODO: Handle edge cases where the answer cannot be found (return None or raise a specific exception).
-        # This will be crucial for handling inputs similar to your 'malformed_output.json' mock data.
-        pass
+        for pattern in self.extraction_patterns:
+            res = pattern.search(raw_text)
+            if res:
+                # If we get more than one match, we need to find the last one
+                match = res[-1].strip()
+                return match
+        return None
 
     def validate_format(self, extracted_answer: str) -> bool:
         """
-        Checks if the extracted answer matches the expected data type/format 
-        (e.g., is it a valid integer/float for math problems?).
+        Checks if the extracted answer matches the expected data format and match to expected format
         """
-        # TODO: Implement validation logic to prevent reasoning hallucinations from 
-        # passing as valid structural logic.
-        pass
+        if not extracted_answer:
+            return None
+        
+        try:
+            # Handle fractions (for example 3 1/4)
+            if '/' in extracted_answer:
+                nums = extracted_answer.split()
+                whole = 0
+                if len(nums) == 2:
+                    whole = float(nums.pop(0))
+                fraction = nums[0].split('/')
+                numerator = fraction[0]
+                denominator = fraction[1]
+                num_val = whole + (numerator / denominator)
+            else:
+                num_val = float(extracted_answer)
+            
+            # Check for impossible values (hallucinations)
+            if num_val != num_val or num_val in [float('inf'), float('-inf')]:
+                return None
+            
+            if num_val.is_integer():
+                return str(int(num_val))
+            else:
+                return str(round(num_val, 4))
+
+        except ValueError:
+            return None
