@@ -1,0 +1,62 @@
+import pytest
+from unittest.mock import Mock
+from src.controller.framework_controller import FrameworkController
+
+
+@pytest.fixture
+def mock_controller():
+    mock_model_manager = Mock()
+    mock_extractor = Mock()
+    mock_consensus_builder = Mock()
+
+    controller = FrameworkController(
+        model_manager=mock_model_manager,
+        extractor=mock_extractor,
+        consensus_builder=mock_consensus_builder
+    )
+    return controller
+
+
+def test_execute_task_baseline_routing(mock_controller, monkeypatch):
+    mock_execute = Mock(return_value={"answer": "answer", "paths": []})
+    monkeypatch.setattr(mock_controller, "_execute_baseline_sc", mock_execute)
+
+    raw_prompt = "question"
+
+    result = mock_controller.execute_task(prompt=raw_prompt, strategy_name="baseline")
+
+    assert result["answer"] == "answer"
+
+    expected_prompt = "question\nLet's think step by step."
+    mock_execute.assert_called_once_with(
+        prompt=expected_prompt,
+        max_paths=10,
+        temp=0.7
+    )
+
+
+def test_execute_task_esc_custom_parameters(mock_controller, monkeypatch):
+    mock_execute_esc = Mock(return_value={"answer": "answer", "paths": []})
+    monkeypatch.setattr(mock_controller, "_execute_esc", mock_execute_esc)
+
+    raw_prompt = "question"
+
+    mock_controller.execute_task(
+        prompt=raw_prompt,
+        strategy_name="esc",
+        max_paths=20,
+        entropy_threshold=0.2,
+        temp=0.5
+    )
+
+    mock_execute_esc.assert_called_once_with(
+        prompt="question\nLet's think step by step.",
+        max_paths=20,
+        entropy_threshold=0.2,
+        temp=0.5
+    )
+
+
+def test_execute_task_invalid_strategy(mock_controller):
+    with pytest.raises(ValueError, match="Unknown strategy 'strat'"):
+        mock_controller.execute_task(prompt="Hello", strategy_name="strat")

@@ -10,10 +10,10 @@ class FrameworkController:
 
     def execute_task(self, prompt: str, strategy_name: str, **kwargs) -> dict:
         # Start with zero shot prompting
-        zero_shot_prompt = f"{prompt}\nLet's think step by step"
+        zero_shot_prompt = f"{prompt}\nLet's think step by step."
 
         # Get parameters
-        temp = kwargs.get("temperature", 0.7)
+        temp = kwargs.get("temp", 0.7)
         max_paths = kwargs.get("max_paths", 10)
         entropy_threshold = kwargs.get("entropy_threshold", 0.5)
 
@@ -23,27 +23,27 @@ class FrameworkController:
             case "baseline":
                 return self._execute_baseline_sc(
                     prompt=zero_shot_prompt,
-                    paths=max_paths,
+                    max_paths=max_paths,
                     temp=temp,
                 )
             case "esc":
                 return self._execute_esc(
                     prompt=zero_shot_prompt,
-                    paths=max_paths,
+                    max_paths=max_paths,
                     temp=temp,
                     entropy_threshold=entropy_threshold,
                 )
             case "seer":
                 return self._execute_seer_sc(
                     prompt=zero_shot_prompt,
-                    paths=max_paths,
+                    max_paths=max_paths,
                     temp=temp,
                     entropy_threshold=entropy_threshold,
                 )
             case "ralu":
                 return self._execute_ralu(
                     prompt=zero_shot_prompt,
-                    paths=max_paths,
+                    max_paths=max_paths,
                     temp=temp,
                     entropy_threshold=entropy_threshold,
                 )
