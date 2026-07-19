@@ -1,5 +1,4 @@
 import pytest
-from typing import List, Dict, Any
 from evaluation_module.consensus import ConsensusManager
 
 @pytest.fixture
@@ -36,9 +35,9 @@ def test_get_majority_vote_tie_broken_by_confidence_score(consensus_manager):
 
 def test_get_majority_vote_tie_with_negative_confidence_scores(consensus_manager):
     paths = [
-        {"extracted_answer": "Option A", "confidence_score": -1.5},
-        {"extracted_answer": "Option A", "confidence_score": -0.5},
-        {"extracted_answer": "Option B", "confidence_score": -2.0},
-        {"extracted_answer": "Option B", "confidence_score": -3.0}
+        {"extracted_answer": "A", "confidence_score": -1.5},
+        {"extracted_answer": "A", "confidence_score": -0.5},
+        {"extracted_answer": "B", "confidence_score": -2.0},
+        {"extracted_answer": "B", "confidence_score": -3.0}
     ]
-    assert consensus_manager.get_majority_vote(paths) == "Option A"
+    assert consensus_manager.get_majority_vote(paths) == "A"
