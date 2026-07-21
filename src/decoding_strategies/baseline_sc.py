@@ -10,6 +10,15 @@ class BaselineSC:
         self.consensus_manager = consensus_manager
         self.extractor = extractor
 
+    def execute(self, prompt: str, num_samples: int, **kwargs) -> dict:
+        paths = self.generate_paths(prompt, num_samples, **kwargs)
+        answer = self.apply_majority_vote(paths)
+
+        return {
+            "answer": answer,
+            "paths_sampled": len(paths)
+        }
+
     def generate_paths(self, prompt: str, num_samples: int, **kwargs) -> List[Dict[str, Any]]:
         generated_paths = []
 
@@ -22,8 +31,6 @@ class BaselineSC:
                                     })
 
         return generated_paths
-
-
 
     def apply_majority_vote(self, paths: List[Dict[str, Any]]) -> str:
         return self.consensus_manager.get_majority_vote(paths)

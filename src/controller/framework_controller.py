@@ -1,21 +1,20 @@
 from src.evaluation_module.consensus import ConsensusManager
 from src.evaluation_module.extractor import AnswerExtractor
+from src.decoding_strategies.baseline_sc import BaselineSC
+import time
+
 from src.models.model_manager import ModelManager
+
 
 class FrameworkController:
     def __init__(self, model_manager: ModelManager, extractor: AnswerExtractor, consensus_builder: ConsensusManager):
-        self.model_manager = model_manager
         self.extractor = extractor
         self.consensus_builder = consensus_builder
+        self.model_manager = model_manager
 
     def execute_task(self, prompt: str, strategy_name: str, **kwargs) -> dict:
         # Start with zero shot prompting
         zero_shot_prompt = f"{prompt}\nLet's think step by step."
-
-        # Get parameters
-        temp = kwargs.get("temp", 0.7)
-        max_paths = kwargs.get("max_paths", 10)
-        entropy_threshold = kwargs.get("entropy_threshold", 0.5)
 
         strategy_name = strategy_name.lower().strip()
 
@@ -23,39 +22,40 @@ class FrameworkController:
             case "baseline":
                 return self._execute_baseline_sc(
                     prompt=zero_shot_prompt,
-                    max_paths=max_paths,
-                    temp=temp,
+                    **kwargs
                 )
             case "esc":
                 return self._execute_esc(
                     prompt=zero_shot_prompt,
-                    max_paths=max_paths,
-                    temp=temp,
-                    entropy_threshold=entropy_threshold,
+                    **kwargs
                 )
             case "seer":
                 return self._execute_seer_sc(
                     prompt=zero_shot_prompt,
-                    max_paths=max_paths,
-                    temp=temp,
-                    entropy_threshold=entropy_threshold,
+                    **kwargs
                 )
             case "ralu":
                 return self._execute_ralu(
                     prompt=zero_shot_prompt,
-                    max_paths=max_paths,
-                    temp=temp,
-                    entropy_threshold=entropy_threshold,
+                    **kwargs
                 )
             case _:
                 raise ValueError(f"Unknown strategy '{strategy_name}'")
 
 
     def _execute_baseline_sc(self, prompt: str, **kwargs) -> dict:
-        # TODO: Execute the sample-and-marginalise technique.
-        # TODO: Request inference from the model manager.
-        # TODO: Pass generated reasoning paths to the evaluation module for majority voting.
-        pass
+        num_samples = kwargs.get("num_samples", 5)
+        start_time = time.time()
+
+        baseline_sc = BaselineSC(self.extractor, self.model_manager, self.consensus_builder)
+        result = baseline_sc.execute(prompt, num_samples, **kwargs)
+        end_time = time.time()
+
+        result["time_seconds"] = round(end_time - start_time, 3)
+        result["strategy"] = "baseline"
+
+        return result
+
 
     def _execute_esc(self, prompt: str, **kwargs) -> dict:
         # TODO: Execute the Early-Stopping Self-Consistency mechanism.
