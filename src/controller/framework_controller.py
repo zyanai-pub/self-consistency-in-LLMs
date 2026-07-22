@@ -44,11 +44,10 @@ class FrameworkController:
 
 
     def _execute_baseline_sc(self, prompt: str, **kwargs) -> dict:
-        num_samples = kwargs.get("num_samples", 5)
         start_time = time.time()
 
         baseline_sc = BaselineSC(self.extractor, self.model_manager, self.consensus_builder)
-        result = baseline_sc.execute(prompt, num_samples, **kwargs)
+        result = baseline_sc.execute(prompt, **kwargs)
         end_time = time.time()
 
         result["time_seconds"] = round(end_time - start_time, 3)

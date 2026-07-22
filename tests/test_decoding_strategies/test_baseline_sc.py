@@ -34,7 +34,7 @@ def test_generate_paths_structure_and_calls(baseline_sc, mock_dependencies):
     prompt = "What is 6 times 1?"
     num_samples = 3
 
-    paths = baseline_sc.generate_paths(prompt, num_samples, temperature=0.7)
+    paths = baseline_sc.generate_paths(prompt, num_samples=3, temperature=0.7)
 
     assert len(paths) == num_samples
     assert model_manager.generate_inference.call_count == num_samples
@@ -57,7 +57,7 @@ def test_apply_majority_vote_with_mock_data(baseline_sc, mock_dependencies):
     expected_answer = "11"
     consensus_manager.get_majority_vote.return_value = expected_answer
 
-    result = baseline_sc.apply_majority_vote(mock_paths)
+    result = baseline_sc._apply_majority_vote(mock_paths)
 
     consensus_manager.get_majority_vote.assert_called_once_with(mock_paths)
     assert result == expected_answer

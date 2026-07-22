@@ -23,7 +23,12 @@ def test_execute_task_baseline_routing(mock_controller, monkeypatch):
 
     raw_prompt = "question"
 
-    result = mock_controller.execute_task(prompt=raw_prompt, strategy_name="baseline")
+    result = mock_controller.execute_task(
+        prompt=raw_prompt,
+        strategy_name="baseline",
+        max_paths=10,
+        temp=0.7
+    )
 
     assert result["answer"] == "answer"
 
