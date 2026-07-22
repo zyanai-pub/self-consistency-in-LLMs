@@ -11,6 +11,7 @@ class FrameworkController:
         self.extractor = extractor
         self.consensus_builder = consensus_builder
         self.model_manager = model_manager
+        self.baseline_sc = BaselineSC(self.extractor, self.model_manager, self.consensus_builder)
 
     def execute_task(self, prompt: str, strategy_name: str, **kwargs) -> dict:
         # Start with zero shot prompting
@@ -45,9 +46,7 @@ class FrameworkController:
 
     def _execute_baseline_sc(self, prompt: str, **kwargs) -> dict:
         start_time = time.time()
-
-        baseline_sc = BaselineSC(self.extractor, self.model_manager, self.consensus_builder)
-        result = baseline_sc.execute(prompt, **kwargs)
+        result = self.baseline_sc.execute(prompt, **kwargs)
         end_time = time.time()
 
         result["time_seconds"] = round(end_time - start_time, 3)

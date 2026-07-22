@@ -1,5 +1,8 @@
 import pytest
 from src.decoding_strategies.baseline_sc import BaselineSC
+import json
+from pathlib import Path
+from unittest.mock import Mock
 
 @pytest.fixture
 def mock_dependencies():
@@ -40,12 +43,6 @@ def test_generate_paths_structure_and_calls(baseline_sc, mock_dependencies):
         assert path['extracted_answer'] == "6"
         assert path['confidence'] == 0.99
         assert path['message'] == "the answer is 6"
-
-
-import json
-from pathlib import Path
-from unittest.mock import Mock
-
 
 def test_execute_with_mock_data(baseline_sc, mock_dependencies):
     current_file_path = Path(__file__)

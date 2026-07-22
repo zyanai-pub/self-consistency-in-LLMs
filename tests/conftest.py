@@ -8,4 +8,4 @@ def load_mock_data():
         path = os.path.join(os.path.dirname(__file__), 'mock_data', filename)
         with open(path, 'r') as file:
             return json.load(file)
-        return _loader
+    return _loader

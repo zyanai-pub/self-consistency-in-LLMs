@@ -31,10 +31,8 @@ class AnswerExtractor:
                 return match
         return None
 
-    def validate_format(self, extracted_answer: str) -> bool:
-        """
-        Checks if the extracted answer matches the expected data format and match to expected format
-        """
+    @staticmethod
+    def normalise_format(self, extracted_answer: str) -> bool:
         if not extracted_answer:
             return None
         

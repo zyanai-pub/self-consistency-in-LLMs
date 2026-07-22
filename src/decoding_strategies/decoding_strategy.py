@@ -19,6 +19,7 @@ class DecodingStrategy(ABC):
             answer = self.extractor.extract_from_text(inference.get('message'))
             generated_paths.append({'extracted_answer': answer,
                                     'confidence': inference.get('confidence'),
+                                    'entropy': inference.get('entropy'),
                                     'message': inference.get('message')
                                     })
 

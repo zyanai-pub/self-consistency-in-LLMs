@@ -20,6 +20,35 @@ class ModelManager:
         # Disable paid add-ons
         litellm.telemetry = False
 
+    @staticmethod
+    def _get_message_and_scores_from_response(response) -> tuple[Any, float, float]:
+        choices = response.choices[0]
+        token_logprobs = choices.logprobs.content
+
+        conf_scores = []
+        entropy_scores = []
+
+        for token_info in token_logprobs:
+            top_logprobs = token_info.top_logprobs
+
+            probs = []
+            for prob in top_logprobs:
+                probs.append(math.exp(prob.logprob))
+
+            total_prob = sum(probs)
+            normalized_probs = [prob / total_prob for prob in probs]
+
+            entropy = -sum(prob * math.log2(prob) for prob in normalized_probs if prob > 0)
+            entropy_scores.append(entropy)
+
+            chosen_token_prob = math.exp(token_info.logprob)
+            conf_scores.append(chosen_token_prob)
+
+        avg_conf = sum(conf_scores) / len(conf_scores)
+        avg_entropy = sum(entropy_scores) / len(entropy_scores)
+
+        return response.choices[0].message, avg_conf, avg_entropy
+
 
     def generate_inference(self, prompt: str, max_retries: int=6, **kwargs) -> dict | None:
         """
@@ -45,7 +74,7 @@ class ModelManager:
                     **kwargs
                 )
 
-                message, confidence, entropy = _get_message_and_scores_from_response(response)
+                message, confidence, entropy = self._get_message_and_scores_from_response(response)
 
                 return {
                     "message": message,
@@ -67,32 +96,3 @@ class ModelManager:
                 print(f"Invalid context or param for {self.model_name}: {e}")
                 return None
         return None
-
-
-def _get_message_and_scores_from_response(response) -> tuple[Any, float, float]:
-    choices = response.choices[0]
-    token_logprobs = choices.logprobs.content
-
-    conf_scores = []
-    entropy_scores = []
-
-    for token_info in token_logprobs:
-        top_logprobs = token_info.top_logprobs
-
-        probs = []
-        for prob in top_logprobs:
-            probs.append(math.exp(prob.logprob))
-
-        total_prob = sum(probs)
-        normalized_probs = [prob / total_prob for prob in probs]
-
-        entropy = -sum(prob * math.log2(prob) for prob in normalized_probs if prob > 0)
-        entropy_scores.append(entropy)
-
-        chosen_token_prob = math.exp(token_info.logprob)
-        conf_scores.append(chosen_token_prob)
-
-    avg_conf = sum(conf_scores) / len(conf_scores)
-    avg_entropy = sum(entropy_scores) / len(entropy_scores)
-
-    return response.choices[0].message, avg_conf, avg_entropy
