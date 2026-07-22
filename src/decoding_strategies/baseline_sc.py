@@ -12,13 +12,9 @@ class BaselineSC(DecodingStrategy):
 
     def execute(self, prompt: str, **kwargs) -> dict:
         paths = self.generate_paths(prompt, **kwargs)
-        answer = self._apply_majority_vote(paths)
+        answer = self.consensus_manager.get_majority_vote(paths)
 
         return {
             "answer": answer,
             "paths_sampled": len(paths)
         }
-
-
-    def _apply_majority_vote(self, paths: List[Dict[str, Any]]) -> str:
-        return self.consensus_manager.get_majority_vote(paths)
