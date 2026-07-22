@@ -24,5 +24,5 @@ def test_extraction(extractor, raw_text, expected_extraction):
                              ("NaN", None),
                              ("invalid", None)
                          ])
-def test_validate_format(extractor, extracted_string, expected_valid):
+def test_normalise_format(extractor, extracted_string, expected_valid):
     assert extractor.normalise_format(extracted_string) == expected_valid
