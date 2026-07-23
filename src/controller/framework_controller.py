@@ -1,3 +1,4 @@
+from src.decoding_strategies.esc import EarlyStoppingSC
 from src.evaluation_module.consensus import ConsensusManager
 from src.evaluation_module.extractor import AnswerExtractor
 from src.decoding_strategies.baseline_sc import BaselineSC
@@ -12,6 +13,7 @@ class FrameworkController:
         self.consensus_builder = consensus_builder
         self.model_manager = model_manager
         self.baseline_sc = BaselineSC(self.extractor, self.model_manager, self.consensus_builder)
+        self.esc = EarlyStoppingSC(self.extractor, self.model_manager, self.consensus_builder)
 
     def execute_task(self, prompt: str, strategy_name: str, **kwargs) -> dict:
         # Start with zero shot prompting
@@ -56,10 +58,14 @@ class FrameworkController:
 
 
     def _execute_esc(self, prompt: str, **kwargs) -> dict:
-        # TODO: Execute the Early-Stopping Self-Consistency mechanism.
-        # TODO: Calculate the entropy of the answer distribution dynamically during sampling.
-        # TODO: Halt sampling once the entropy falls below the predefined threshold.
-        pass
+        start_time = time.time()
+        result = self.esc.execute(prompt, **kwargs)
+        end_time = time.time()
+
+        result["time_seconds"] = round(end_time - start_time, 3)
+        result["strategy"] = "esc"
+
+        return result
 
     def _execute_seer_sc(self, prompt: str, **kwargs) -> dict:
         # TODO: Execute the Seer Self-Consistency mechanism.
