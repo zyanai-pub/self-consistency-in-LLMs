@@ -1,4 +1,5 @@
 from src.decoding_strategies.esc import EarlyStoppingSC
+from src.decoding_strategies.seer_sc import SeerSC
 from src.evaluation_module.consensus import ConsensusManager
 from src.evaluation_module.extractor import AnswerExtractor
 from src.decoding_strategies.baseline_sc import BaselineSC
@@ -8,12 +9,17 @@ from src.models.model_manager import ModelManager
 
 
 class FrameworkController:
-    def __init__(self, model_manager: ModelManager, extractor: AnswerExtractor, consensus_builder: ConsensusManager):
+    def __init__(self,
+                 model_manager: ModelManager,
+                 extractor: AnswerExtractor,
+                 consensus_builder: ConsensusManager,
+                 system1_model_manager: ModelManager = None):
         self.extractor = extractor
         self.consensus_builder = consensus_builder
         self.model_manager = model_manager
         self.baseline_sc = BaselineSC(self.extractor, self.model_manager, self.consensus_builder)
         self.esc = EarlyStoppingSC(self.extractor, self.model_manager, self.consensus_builder)
+        self.seer_sc = SeerSC(self.extractor, self.model_manager, system1_model_manager, self.consensus_builder)
 
     def execute_task(self, prompt: str, strategy_name: str, **kwargs) -> dict:
         # Start with zero shot prompting
@@ -21,58 +27,29 @@ class FrameworkController:
 
         strategy_name = strategy_name.lower().strip()
 
+        start_time = time.time()
+        result = {}
+
         match strategy_name:
             case "baseline":
-                return self._execute_baseline_sc(
-                    prompt=zero_shot_prompt,
-                    **kwargs
-                )
+                result = self.baseline_sc.execute(zero_shot_prompt, **kwargs)
             case "esc":
-                return self._execute_esc(
-                    prompt=zero_shot_prompt,
-                    **kwargs
-                )
+                result = self.esc.execute(prompt, **kwargs)
             case "seer":
-                return self._execute_seer_sc(
-                    prompt=zero_shot_prompt,
-                    **kwargs
-                )
+                result = self.seer_sc.execute(prompt, **kwargs)
             case "ralu":
-                return self._execute_ralu(
+                result = self._execute_ralu(
                     prompt=zero_shot_prompt,
                     **kwargs
                 )
             case _:
                 raise ValueError(f"Unknown strategy '{strategy_name}'")
 
-
-    def _execute_baseline_sc(self, prompt: str, **kwargs) -> dict:
-        start_time = time.time()
-        result = self.baseline_sc.execute(prompt, **kwargs)
         end_time = time.time()
 
-        result["time_seconds"] = round(end_time - start_time, 3)
-        result["strategy"] = "baseline"
+        result.update({"time_seconds": round(end_time - start_time, 3), "strategy": strategy_name})
 
         return result
-
-
-    def _execute_esc(self, prompt: str, **kwargs) -> dict:
-        start_time = time.time()
-        result = self.esc.execute(prompt, **kwargs)
-        end_time = time.time()
-
-        result["time_seconds"] = round(end_time - start_time, 3)
-        result["strategy"] = "esc"
-
-        return result
-
-    def _execute_seer_sc(self, prompt: str, **kwargs) -> dict:
-        # TODO: Execute the Seer Self-Consistency mechanism.
-        # TODO: Trigger a smaller "System 1" model to calculate the confidence-weighted entropy.
-        # TODO: Estimate the compute budget based on the "System 1" output.
-        # TODO: Execute full reasoning on the "System 2" model using the allocated budget concurrently.
-        pass
 
     def _execute_ralu(self, prompt: str, **kwargs) -> dict:
         # TODO: Execute the Reasoning-as-Logic-Units strategy.
