@@ -19,7 +19,12 @@ class FrameworkController:
         self.model_manager = model_manager
         self.baseline_sc = BaselineSC(self.extractor, self.model_manager, self.consensus_builder)
         self.esc = EarlyStoppingSC(self.extractor, self.model_manager, self.consensus_builder)
-        self.seer_sc = SeerSC(self.extractor, self.model_manager, system1_model_manager, self.consensus_builder)
+        self.seer_sc = SeerSC(
+            extractor=self.extractor,
+            system1_model_manager=system1_model_manager,
+            system2_model_manager=self.model_manager,
+            consensus_manager=self.consensus_builder
+        )
 
     def execute_task(self, prompt: str, strategy_name: str, **kwargs) -> dict:
         # Start with zero shot prompting
@@ -34,9 +39,9 @@ class FrameworkController:
             case "baseline":
                 result = self.baseline_sc.execute(zero_shot_prompt, **kwargs)
             case "esc":
-                result = self.esc.execute(prompt, **kwargs)
+                result = self.esc.execute(zero_shot_prompt, **kwargs)
             case "seer":
-                result = self.seer_sc.execute(prompt, **kwargs)
+                result = self.seer_sc.execute(zero_shot_prompt, **kwargs)
             case "ralu":
                 result = self._execute_ralu(
                     prompt=zero_shot_prompt,

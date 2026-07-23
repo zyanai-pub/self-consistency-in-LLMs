@@ -18,36 +18,30 @@ def mock_controller():
 
 
 def test_execute_task_baseline_routing(mock_controller, monkeypatch):
-    mock_execute = Mock(return_value={"answer": "answer", "paths": []})
-    monkeypatch.setattr(mock_controller, "_execute_baseline_sc", mock_execute)
-
-    raw_prompt = "question"
+    mock_execute = Mock(return_value={"answer": "answer", "paths_sampled": 5})
+    monkeypatch.setattr(mock_controller.baseline_sc, "execute", mock_execute)
 
     result = mock_controller.execute_task(
-        prompt=raw_prompt,
+        prompt="question",
         strategy_name="baseline",
         max_paths=10,
         temp=0.7
     )
 
     assert result["answer"] == "answer"
-
-    expected_prompt = "question\nLet's think step by step."
     mock_execute.assert_called_once_with(
-        prompt=expected_prompt,
+        "question\nLet's think step by step.",  # positional, no prompt=
         max_paths=10,
         temp=0.7
     )
 
 
 def test_execute_task_esc_custom_parameters(mock_controller, monkeypatch):
-    mock_execute_esc = Mock(return_value={"answer": "answer", "paths": []})
-    monkeypatch.setattr(mock_controller, "_execute_esc", mock_execute_esc)
-
-    raw_prompt = "question"
+    mock_execute_esc = Mock(return_value={"answer": "answer", "paths_sampled": 5})
+    monkeypatch.setattr(mock_controller.esc, "execute", mock_execute_esc)
 
     mock_controller.execute_task(
-        prompt=raw_prompt,
+        prompt="question",
         strategy_name="esc",
         max_paths=20,
         entropy_threshold=0.2,
@@ -55,7 +49,7 @@ def test_execute_task_esc_custom_parameters(mock_controller, monkeypatch):
     )
 
     mock_execute_esc.assert_called_once_with(
-        prompt="question\nLet's think step by step.",
+        "question\nLet's think step by step.",  # positional, no prompt=
         max_paths=20,
         entropy_threshold=0.2,
         temp=0.5
