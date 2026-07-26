@@ -9,10 +9,13 @@ from src.models.model_manager import ModelManager
 
 
 class SeerSC(DecodingStrategy):
-    def __init__(self, extractor: AnswerExtractor, system1_model_manager: ModelManager, system2_model_manager: ModelManager, consensus_manager: ConsensusManager):
-        super().__init__(system2_model_manager, extractor)
+    def __init__(self,
+                 extractor: AnswerExtractor,
+                 system1_model_manager: ModelManager,
+                 system2_model_manager: ModelManager,
+                 consensus_manager: ConsensusManager):
+        super().__init__(system2_model_manager, extractor, consensus_manager)
         self.system1_model_manager = system1_model_manager
-        self.consensus_manager = consensus_manager
 
     @staticmethod
     def _compute_confidence_weighted_entropy(paths: List[Dict[str, Any]]) -> float:

@@ -10,8 +10,7 @@ from src.models.model_manager import ModelManager
 
 class EarlyStoppingSC(DecodingStrategy):
     def __init__(self, extractor: AnswerExtractor, model_manager: ModelManager, consensus_manager: ConsensusManager):
-        super().__init__(model_manager, extractor)
-        self.consensus_manager = consensus_manager
+        super().__init__(model_manager, extractor, consensus_manager)
 
     @staticmethod
     def _calculate_entropy(answers: List[str]) -> float:

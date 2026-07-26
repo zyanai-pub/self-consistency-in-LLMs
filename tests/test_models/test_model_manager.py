@@ -52,7 +52,6 @@ def test_generate_inference_success(mock_completion):
 
     assert result is not None
     assert result['message'] == "the answer is 6"
-    assert 'entropy' in result
     assert 'confidence' in result
 
 
@@ -71,7 +70,6 @@ def test_generate_inference_rate_limit_triggers_sleep(mock_completion, mock_slee
 
     assert result["message"] == "success"
     assert "confidence" in result
-    assert "entropy" in result
 
     assert mock_completion.call_count == 2
     mock_sleep.assert_called_once_with(15.0)

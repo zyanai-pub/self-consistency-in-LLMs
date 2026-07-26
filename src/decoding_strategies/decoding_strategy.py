@@ -1,14 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
+from src.evaluation_module.consensus import ConsensusManager
 from src.evaluation_module.extractor import AnswerExtractor
 from src.models.model_manager import ModelManager
 
 
 class DecodingStrategy(ABC):
-    def __init__(self, model_manager: ModelManager, extractor: AnswerExtractor):
+    def __init__(self, model_manager: ModelManager, extractor: AnswerExtractor, consensus_manager: ConsensusManager):
         self.model_manager = model_manager
         self.extractor = extractor
+        self.consensus_manager = consensus_manager
 
     def generate_paths(self, prompt: str, **kwargs) -> List[Dict[str, Any]]:
         num_samples = kwargs.get("num_samples", 5)
@@ -19,7 +21,6 @@ class DecodingStrategy(ABC):
             answer = self.extractor.extract_from_text(inference.get('message'))
             generated_paths.append({'extracted_answer': answer,
                                     'confidence': inference.get('confidence'),
-                                    'entropy': inference.get('entropy'),
                                     'message': inference.get('message')
                                     })
 

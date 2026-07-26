@@ -7,8 +7,7 @@ from src.models.model_manager import ModelManager
 
 class BaselineSC(DecodingStrategy):
     def __init__(self, extractor: AnswerExtractor, model_manager: ModelManager, consensus_manager: ConsensusManager):
-        super().__init__(model_manager, extractor)
-        self.consensus_manager = consensus_manager
+        super().__init__(model_manager, extractor, consensus_manager)
 
     def execute(self, prompt: str, **kwargs) -> dict:
         paths = self.generate_paths(prompt, **kwargs)
