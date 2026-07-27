@@ -22,16 +22,41 @@ class AnswerExtractor:
         """
         Takes a single reasoning path's raw text and returns the extracted answer.
         """
+        if not raw_text:
+            return None
+
+        boxed_matches = re.findall(r"\\boxed\{([^}]+)\}", raw_text)
+        if boxed_matches:
+            inner = boxed_matches[-1].strip()
+            for pattern in self.extraction_patterns:
+                res = pattern.findall(inner)
+                if res:
+                    return res[-1].strip()
+
+        lower_text = raw_text.lower()
+        split_idx = -1
+        keywords = ["####", "answer is", "conclusion", "therefore", "final answer"]
+
+        for keyword in keywords:
+            idx = lower_text.rfind(keyword)
+            if idx > split_idx:
+                split_idx = idx + len(keyword)
+
+        if split_idx != -1:
+            target_text = raw_text[split_idx:]
+        else:
+            lines = [line.strip() for line in raw_text.strip().splitlines() if line.strip()]
+            target_text = lines[-1] if lines else raw_text
+
         for pattern in self.extraction_patterns:
-            res = pattern.findall(raw_text)
+            res = pattern.findall(target_text)
             if res:
-                # If we get more than one match, we need to find the last one
-                match = res[-1].strip()
-                return match
+                return res[-1].strip()
+
         return None
 
     @staticmethod
-    def normalise_format(extracted_answer: str) -> bool:
+    def normalise_format(extracted_answer: str) -> str | None:
         if not extracted_answer:
             return None
         
