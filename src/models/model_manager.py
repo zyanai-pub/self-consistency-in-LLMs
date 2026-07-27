@@ -15,8 +15,8 @@ class ModelManager:
             os.environ["GEMINI_API_KEY"] = api_keys["gemini"]
         if "groq" in api_keys:
             os.environ["GROQ_API_KEY"] = api_keys["groq"]
-        if "huggingface" in api_keys:
-            os.environ["HUGGINGFACE_API_KEY"] = api_keys["huggingface"]
+        if "mistral" in api_keys:
+            os.environ["MITRAL_API_KEY"] = api_keys["mistral"]
 
         # Disable paid add-ons
         litellm.telemetry = False

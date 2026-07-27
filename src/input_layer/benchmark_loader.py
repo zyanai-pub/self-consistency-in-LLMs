@@ -13,7 +13,8 @@ class BenchmarkLoader:
         self.dataset = load_dataset("gsm8k", "main", split="test")
 
 
-    def parse_problem(self, problem: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def parse_problem(problem: Dict[str, Any]) -> Dict[str, Any]:
         question = problem["question"]
         raw_answer = problem["answer"]
 
