@@ -1,0 +1,16 @@
+{
+  "prompt": "A farmer has 25 oranges. 1 is bad, 2 are sour, and 20% are unripe. How many are good?",
+  "expected_truth": "17",
+  "generated_paths": [
+    {
+      "raw_text": "Step 1: Total = 25. Step 2: Bad = 1, Sour = 2, Unripe = 20% of 25 = 5. Step 3: Good = 25 - 1 - 2 - 5 = 17. Therefore the answer is 17.",
+      "extracted_answer": "17",
+      "confidence_score": 0.95
+    },
+    {
+      "raw_text": "25 total oranges. Remove 1 bad, 2 sour, 5 unripe (20% of 25). 25 - 8 = 17. The answer is 17.",
+      "extracted_answer": "17",
+      "confidence_score": 0.93
+    }
+  ]
+}

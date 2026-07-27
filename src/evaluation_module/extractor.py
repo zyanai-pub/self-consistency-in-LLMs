@@ -11,12 +11,11 @@ class AnswerExtractor:
         """
         default_patterns = [
             r"####\s*(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)",
-            r"(?:the\s+)?answer\s+is\s*:?\s*\*?\*?\s*(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)",
-            r"(?:conclusion|therefore)[^0-9]*(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)",
-            r"(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)(?!.*\d)"
+            r"(?:conclusion|therefore).*(?<![\d.])(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)",
+            r"(-?\d+(?:\.\d+| \d+/\d+|/\d+)?)",
         ]
         patterns = custom_patterns if custom_patterns else default_patterns
-        self.extraction_patterns = [re.compile(pattern, re.IGNORECASE | re.DOTALL) for pattern in patterns]
+        self.extraction_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
 
 
     def extract_from_text(self, raw_text: str) -> str:
