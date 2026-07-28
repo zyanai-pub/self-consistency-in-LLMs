@@ -1,4 +1,5 @@
 from src.decoding_strategies.esc import EarlyStoppingSC
+from src.decoding_strategies.ralu import RaLUSC
 from src.decoding_strategies.seer_sc import SeerSC
 from src.evaluation_module.consensus import ConsensusManager
 from src.evaluation_module.extractor import AnswerExtractor
@@ -25,6 +26,7 @@ class FrameworkController:
             system2_model_manager=self.model_manager,
             consensus_manager=self.consensus_builder
         )
+        self.ralu = RaLUSC(self.extractor, self.model_manager, self.consensus_builder)
 
     def execute_task(self, prompt: str, strategy_name: str, **kwargs) -> dict:
         # Start with zero shot prompting
@@ -43,10 +45,7 @@ class FrameworkController:
             case "seer":
                 result = self.seer_sc.execute(zero_shot_prompt, **kwargs)
             case "ralu":
-                result = self._execute_ralu(
-                    prompt=zero_shot_prompt,
-                    **kwargs
-                )
+                result = self.ralu.execute(zero_shot_prompt, **kwargs)
             case _:
                 raise ValueError(f"Unknown strategy '{strategy_name}'")
 
@@ -55,9 +54,3 @@ class FrameworkController:
         result.update({"time_seconds": round(end_time - start_time, 3), "strategy": strategy_name})
 
         return result
-
-    def _execute_ralu(self, prompt: str, **kwargs) -> dict:
-        # TODO: Execute the Reasoning-as-Logic-Units strategy.
-        # TODO: Identify critical reasoning tokens during generation.
-        # TODO: Adjust the logit distributions to align natural language with structured logic.
-        pass

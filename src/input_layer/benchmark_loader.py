@@ -10,7 +10,7 @@ class BenchmarkLoader:
 
 
     def load_gsm8k(self) -> None:
-        self.dataset = load_dataset("gsm8k", "main", split="test")
+        self.dataset = load_dataset("openai/gsm8k", "main", split="test")
 
 
     @staticmethod

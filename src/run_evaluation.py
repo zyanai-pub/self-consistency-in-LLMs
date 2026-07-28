@@ -2,7 +2,9 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Any
+from dotenv import load_dotenv
+
 
 from src.evaluation_module.consensus import ConsensusManager
 
@@ -10,14 +12,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.controller.framework_controller import FrameworkController
 from src.input_layer.benchmark_loader import BenchmarkLoader
-from evaluation_module.extractor import AnswerExtractor
+from src.evaluation_module.extractor import AnswerExtractor
 from src.models.model_manager import ModelManager
 
+load_dotenv()
+
 MODELS = {
-    "gemini-flash": "gemini/gemini-1.5-flash",
+    "gemini-flash": "gemini/gemini-2.0-flash",
     "groq-llama":   "groq/llama3-8b-8192",
     "groq-mixtral": "groq/mixtral-8x7b-32768",
-    "mistral-small": "mistral/mistral-small-latest",
 }
 
 SYSTEM1_MODEL = "groq/llama3-8b-8192"
@@ -175,7 +178,7 @@ def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, sub
 
 if __name__ == "__main__":
     api_keys = {
-        "gemini": os.environ.get("GEMINI_API_KEY", ""),
+        "gemini": os.environ.get("GOOGLE_API_KEY", ""),
         "groq": os.environ.get("GROQ_API_KEY", "")
     }
 

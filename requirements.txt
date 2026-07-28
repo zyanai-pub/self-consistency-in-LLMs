@@ -1,4 +1,6 @@
+python-dotenv
 datasets
 staticfg>=0.9.5
 litellm>=1.0.0
 google-generativeai
+tenacity

@@ -10,13 +10,11 @@ class ModelManager:
     def __init__(self, model_name: str, api_keys: Dict[str, str]):
         self.model_name = model_name
 
-        # groq, gemini and huggingface, as they are the ones that offer a free tier for developers.
+        # groq and gemini, as they are the ones that offer a free tier for developers.
         if "gemini" in api_keys:
             os.environ["GEMINI_API_KEY"] = api_keys["gemini"]
         if "groq" in api_keys:
             os.environ["GROQ_API_KEY"] = api_keys["groq"]
-        if "mistral" in api_keys:
-            os.environ["MITRAL_API_KEY"] = api_keys["mistral"]
 
         # Disable paid add-ons
         litellm.telemetry = False
