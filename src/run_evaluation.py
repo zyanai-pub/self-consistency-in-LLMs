@@ -130,7 +130,7 @@ def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, sub
                     })
 
                 if (i + 1) % 20 == 0:
-                    running_acc = correct / i + 1
+                    running_acc = correct / (i + 1)
 
                     print(f"{i+1}/{len(subset)} - running accuracy:{running_acc}")
 
@@ -157,9 +157,9 @@ def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, sub
         summary = {
             model: {
                 strategy: {
-                    "accuracy": all_res[model_label][strategy]["accuracy"],
-                    "correct": all_res[model_label][strategy]["correct"],
-                    "total": all_res[model_label][strategy]["total"],
+                    "accuracy": all_res[model][strategy]["accuracy"],
+                    "correct": all_res[model][strategy]["correct"],
+                    "total": all_res[model][strategy]["total"],
                 }
                 for strategy in all_res[model]
             }
