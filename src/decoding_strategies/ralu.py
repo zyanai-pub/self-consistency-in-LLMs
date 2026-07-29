@@ -80,7 +80,7 @@ class RaLUSC(DecodingStrategy):
     # ------------------------------------------------------------------
 
     def _generate_ralu_path(self, prompt: str, **kwargs) -> Dict[str, Any]:
-        model_output = self.model_manager.generate_inference(prompt=_INITIAL_PROGRAM_SYSTEM_PROMPT)
+        model_output = self.model_manager.generate_inference(prompt=(_INITIAL_PROGRAM_SYSTEM_PROMPT + f"\n\nProblem: {prompt}"))
         program = model_output['message']
 
         cfg = _build_cfg(program)

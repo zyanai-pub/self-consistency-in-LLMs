@@ -18,12 +18,12 @@ from src.models.model_manager import ModelManager
 load_dotenv()
 
 MODELS = {
-    "gemini-flash": "gemini/gemini-2.0-flash",
-    "groq-llama":   "groq/llama3-8b-8192",
+    #"gemini-flash": "gemini/gemini-2.0-flash-001",
+    "groq-llama":   "groq/llama-3.3-70b-versatile",
     "groq-mixtral": "groq/mixtral-8x7b-32768",
 }
 
-SYSTEM1_MODEL = "groq/llama3-8b-8192"
+SYSTEM1_MODEL = "groq/llama-3.1-8b-instant"
 
 STRATEGIES = {"baseline", "esc", "seer", "ralu"}
 

@@ -13,7 +13,7 @@ class DecodingStrategy(ABC):
         self.consensus_manager = consensus_manager
 
     def generate_paths(self, prompt: str, **kwargs) -> List[Dict[str, Any]]:
-        num_samples = kwargs.get("num_samples", 5)
+        num_samples = kwargs.pop("num_paths", kwargs.pop("num_samples", 5))
         generated_paths = []
 
         for _ in range(num_samples):

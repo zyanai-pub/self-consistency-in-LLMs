@@ -1,10 +1,19 @@
 import math
+import re
 from typing import Dict, Any
 import os
 import litellm
 from litellm.exceptions import RateLimitError, BadRequestError
 import time
 
+NO_LOGPROBS_PROVIDERS = {"groq"}
+
+CONFIDENCE_SUFFIX = (
+    "\n\nAfter your reasoning, output exactly one line in this format:\n"
+    "CONFIDENCE: <number between 0.0 and 1.0>"
+)
+
+_CONFIDENCE_LINE_RE = re.compile(r'\n?CONFIDENCE:\s*[0-9]*\.?[0-9]+\s*$', re.IGNORECASE)
 
 class ModelManager:
     def __init__(self, model_name: str, api_keys: Dict[str, str]):
@@ -19,17 +28,36 @@ class ModelManager:
         # Disable paid add-ons
         litellm.telemetry = False
 
+        provider = model_name.split("/")[0].lower()
+        self.supports_logprobs = provider not in NO_LOGPROBS_PROVIDERS
+
     @staticmethod
-    def _get_message_and_confidence_from_response(response) -> tuple[Any, float]:
+    def _confidence_from_logprobs(response) -> float:
         token_logprobs = response.choices[0].logprobs.content
+        conf_scores = [math.exp(t.logprob) for t in token_logprobs]
+        return sum(conf_scores) / len(conf_scores)
 
-        conf_scores = [
-            math.exp(token_info.logprob)
-            for token_info in token_logprobs
-        ]
+    @staticmethod
+    def _confidence_from_text(response) -> float:
+        text = response.choices[0].message.content or ""
+        match = re.search(r'CONFIDENCE:\s*([0-9]*\.?[0-9]+)', text)
+        if match:
+            return max(0.0, min(1.0, float(match.group(1))))
+        return 0.5
 
-        avg_conf = sum(conf_scores) / len(conf_scores)
-        return response.choices[0].message, avg_conf
+    def _get_message_and_confidence_from_response(self, response) -> tuple[Any, float]:
+        message = response.choices[0].message
+        if self.supports_logprobs:
+            confidence = self._confidence_from_logprobs(response)
+        else:
+            confidence = self._confidence_from_text(response)
+        return message, confidence
+
+
+    @staticmethod
+    def _strip_confidence_line(message) -> str:
+        text = message.content if hasattr(message, 'content') else str(message)
+        return _CONFIDENCE_LINE_RE.sub('', text).rstrip()
 
     def generate_inference(self, prompt: str, max_retries: int = 6, **kwargs) -> dict | None:
         """
@@ -41,6 +69,9 @@ class ModelManager:
         if "max_tokens" not in kwargs:
             kwargs["max_tokens"] = 1024
 
+        if self.supports_logprobs:
+            prompt = prompt + CONFIDENCE_SUFFIX
+
         for attempt in range(max_retries):
             try:
                 response = litellm.completion(
@@ -50,14 +81,18 @@ class ModelManager:
                         "content": prompt
                     }],
                     num_retries=1,
-                    logprobs=True,
+                    logprobs=self.supports_logprobs,
                     **kwargs
                 )
 
                 message, confidence = self._get_message_and_confidence_from_response(response)
 
+                clean_message = message
+                if not self.supports_logprobs:
+                    clean_message = self._strip_confidence_line(clean_message)
+
                 return {
-                    "message":    message,
+                    "message":    clean_message,
                     "confidence": confidence,
                 }
 
