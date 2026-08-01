@@ -5,6 +5,13 @@ from src.evaluation_module.consensus import ConsensusManager
 from src.evaluation_module.extractor import AnswerExtractor
 from src.models.model_manager import ModelManager
 
+ANSWER_SUFFIX = """
+Solve the problem step by step.
+At the end, output exactly one final line in this format:
+#### <final numeric answer>
+Do not put any other text after that line.
+"""
+
 
 class DecodingStrategy(ABC):
     def __init__(self, model_manager: ModelManager, extractor: AnswerExtractor, consensus_manager: ConsensusManager):
@@ -17,7 +24,7 @@ class DecodingStrategy(ABC):
         generated_paths = []
 
         for _ in range(num_samples):
-            inference = self.model_manager.generate_inference(prompt, **kwargs)
+            inference = self.model_manager.generate_inference(f"{prompt}\n\n{ANSWER_SUFFIX}", **kwargs)
             answer = self.extractor.extract_from_text(inference.get('message'))
             generated_paths.append({'extracted_answer': answer,
                                     'confidence': inference.get('confidence'),

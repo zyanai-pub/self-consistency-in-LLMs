@@ -1,3 +1,4 @@
+import json
 import math
 import re
 from typing import Dict, Any
@@ -14,6 +15,18 @@ CONFIDENCE_SUFFIX = (
 )
 
 _CONFIDENCE_LINE_RE = re.compile(r'\n?CONFIDENCE:\s*[0-9]*\.?[0-9]+\s*$', re.IGNORECASE)
+
+# Cache management to handle rate limit
+CACHE_FILE = "llm_cache.json"
+if os.path.exists(CACHE_FILE):
+    with open(CACHE_FILE, "r") as f:
+        local_cache = json.load(f)
+else:
+    local_cache = {}
+
+def save_cache():
+    with open(CACHE_FILE, "w") as f:
+        json.dump(local_cache, f, indent=4)
 
 class ModelManager:
     def __init__(self, model_name: str, api_keys: Dict[str, str]):
@@ -63,17 +76,26 @@ class ModelManager:
         """
         Route the prompt to the appropriate API caller based on the initialized model.
         """
+        # Cache management
+        effective_prompt = prompt + CONFIDENCE_SUFFIX if not self.supports_logprobs else prompt
+        cache_key = f"{self.model_name}_{effective_prompt}"
+        if cache_key in local_cache:
+            print(f"loaded from cache for {self.model_name}")
+            return local_cache[cache_key]
+
+
         base_wait_time_seconds = 15.0
 
         # Handle free-tier payload rejection with fallback
         if "max_tokens" not in kwargs:
             kwargs["max_tokens"] = 1024
 
-        if self.supports_logprobs:
+        if not self.supports_logprobs:
             prompt = prompt + CONFIDENCE_SUFFIX
 
         for attempt in range(max_retries):
             try:
+                time.sleep(2.1)
                 response = litellm.completion(
                     model=self.model_name,
                     messages=[{
@@ -91,10 +113,15 @@ class ModelManager:
                 if not self.supports_logprobs:
                     clean_message = self._strip_confidence_line(clean_message)
 
-                return {
+                result =  {
                     "message":    clean_message,
                     "confidence": confidence,
                 }
+
+                local_cache[cache_key] = result
+                save_cache()
+
+                return result
 
             except RateLimitError:
                 if attempt == max_retries - 1:

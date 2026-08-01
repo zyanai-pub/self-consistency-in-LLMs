@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Any
 from dotenv import load_dotenv
+import asyncio
 
 
 from src.evaluation_module.consensus import ConsensusManager
@@ -39,6 +40,8 @@ STRATEGY_KWARGS = {
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 
+rate_limit_semaphore = asyncio.Semaphore(2)
+
 def build_controller(model_name: str, api_keys: Dict[str, str]) -> FrameworkController:
     model_manager = ModelManager(model_name, api_keys)
     system1_model_manager = ModelManager(SYSTEM1_MODEL, api_keys)
@@ -72,7 +75,44 @@ def print_summary_table(summary: Dict[str, Any]) -> None:
             print(f"{acc}")
         print()
 
-def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, subset_seed: int = SUBSET_SEED, models: Dict[str, str] = None, strategies: List[str] = None) -> Dict[str, Any]:
+
+async def evaluate_single_sample(i: int, item: dict, controller: FrameworkController, strat: str, kwargs: dict) -> dict:
+    question = item["question"]
+    expected = item["answer"]
+
+    # Use semaphore for rate limit management
+    async with rate_limit_semaphore:
+        await asyncio.sleep(2.1)
+
+        try:
+            output = await asyncio.to_thread(controller.execute_task, question, strat, **kwargs)
+            prediction = output.get("answer")
+            is_correct = str(prediction).strip() == str(expected).strip()
+
+            return {
+                "i": i,
+                "question": question,
+                "prediction": prediction,
+                "expected": expected,
+                "correct": is_correct,
+                "paths_sampled": output.get("paths_sampled"),
+                "time_seconds": output.get("time_seconds")
+            }
+
+        except Exception as e:
+            print(f"ERROR on item {i}: {e}")
+            return {
+                "i": i,
+                "question": question,
+                "expected": expected,
+                "prediction": None,
+                "correct": False,
+                "error": str(e)
+            }
+
+
+async def run_evaluation_async(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, subset_seed: int = SUBSET_SEED,
+                               models: Dict[str, str] = None, strategies: List[str] = None) -> Dict[str, Any]:
     strategies = strategies or STRATEGIES
     models = models or MODELS
 
@@ -82,7 +122,6 @@ def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, sub
     all_res = {}
 
     print("Loading GSM8K subset...")
-
     loader = BenchmarkLoader()
     subset = loader.get_random_subset(subset_size, subset_seed)
     print(f"Loaded {len(subset)} samples\n")
@@ -96,49 +135,18 @@ def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, sub
         for strat in strategies:
             print(f"Strategy: {strat}")
             kwargs = STRATEGY_KWARGS[strat]
-            strat_res = []
-            correct = 0
 
-            for i, item in enumerate(subset):
-                question = item["question"]
-                expected = item["answer"]
+            tasks = [
+                evaluate_single_sample(i, item, controller, strat, kwargs)
+                for i, item in enumerate(subset)
+            ]
 
-                try:
-                    output = controller.execute_task(question, strat, **kwargs)
-                    prediction = output.get("answer")
-                    is_correct = str(prediction).strip() == str(expected).strip()
+            strat_res = await asyncio.gather(*tasks)
+            strat_res = sorted(strat_res, key=lambda x: x["i"])
 
-                    if is_correct:
-                        correct += 1
-
-                    strat_res.append({
-                        "i": i,
-                        "question": question,
-                        "prediction": prediction,
-                        "expected": expected,
-                        "correct": is_correct,
-                        "paths_sampled": output.get("paths_sampled"),
-                        "time_seconds": output.get("time_seconds")
-                    })
-
-                except Exception as e:
-                    print(f"ERROR: {e}")
-                    strat_res.append({
-                        "i": i,
-                        "question": question,
-                        "expected": expected,
-                        "prediction": None,
-                        "correct": False,
-                        "error": str(e)
-                    })
-
-                if (i + 1) % 20 == 0:
-                    running_acc = correct / (i + 1)
-
-                    print(f"{i+1}/{len(subset)} - running accuracy:{running_acc}")
-
+            correct = sum(1 for res in strat_res if res.get("correct", False))
             accuracy = correct / len(subset)
-            print(f"Overall accuracy: {accuracy}")
+            print(f"Overall accuracy for {strat}: {accuracy}\n")
 
             all_res[model_label][strat] = {
                 "accuracy": accuracy,
@@ -147,7 +155,6 @@ def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, sub
                 "results": strat_res
             }
 
-            # Log results in case of crash
             checkpoint_path = os.path.join(
                 RESULTS_DIR,
                 f"{run_id}_{model_label}_{strat}.json"
@@ -169,12 +176,18 @@ def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, sub
             for model in all_res
         }
         with open(sum_path, "w") as f:
-            json.dump(summary, f)
-
+            json.dump(summary, f, indent=4)
             print(f"Saved summary at {sum_path}")
+
         print_summary_table(summary)
 
     return all_res
+
+
+def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, subset_seed: int = SUBSET_SEED,
+                   models: Dict[str, str] = None, strategies: List[str] = None):
+    # Entry point wrapper to run the async loop
+    asyncio.run(run_evaluation_async(api_keys, subset_size, subset_seed, models, strategies))
 
 if __name__ == "__main__":
     api_keys = {
