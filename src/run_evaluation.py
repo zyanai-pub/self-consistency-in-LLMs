@@ -47,8 +47,6 @@ STRATEGY_KWARGS = {
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 
-rate_limit_semaphore = asyncio.Semaphore(2)
-
 def build_controller(model_name: str, api_keys: Dict[str, str]) -> FrameworkController:
     model_manager = ModelManager(model_name, api_keys)
     system1_model_manager = ModelManager(SYSTEM1_MODEL, api_keys)

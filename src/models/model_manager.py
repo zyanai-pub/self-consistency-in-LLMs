@@ -1,10 +1,11 @@
 import math
-import re
-from typing import Dict, Any, Optional
 import os
-import litellm
-from litellm.exceptions import RateLimitError, BadRequestError
+import re
 import time
+from typing import Any, Dict, List, Optional, Union
+
+import litellm
+from litellm.exceptions import BadRequestError, RateLimitError
 
 NO_LOGPROBS_PROVIDERS = {"groq"}
 
@@ -15,42 +16,51 @@ CONFIDENCE_SUFFIX = (
 
 _CONFIDENCE_LINE_RE = re.compile(r'\n?CONFIDENCE:\s*[0-9]*\.?[0-9]+\s*$', re.IGNORECASE)
 
+
 class ModelManager:
-    def __init__(self, model_name: str, api_keys: Optional[Dict[str, str]] = None, api_base: Optional[str] = None):
+    def __init__(
+        self,
+        model_name: str,
+        api_keys: Optional[Dict[str, str]] = None,
+        api_base: Optional[str] = None
+    ):
         self.model_name = model_name
         self.api_base = api_base or os.getenv("VLLM_API_BASE")
         self.is_local = self.api_base is not None or "localhost" in model_name or "127.0.0.1" in model_name
 
-        # groq and gemini, as they are the ones that offer a free tier for developers.
-        if "gemini" in api_keys:
+        if api_keys and "gemini" in api_keys:
             os.environ["GEMINI_API_KEY"] = api_keys["gemini"]
-        if "groq" in api_keys:
+        if api_keys and "groq" in api_keys:
             os.environ["GROQ_API_KEY"] = api_keys["groq"]
 
-        # Disable paid add-ons
         litellm.telemetry = False
 
         provider = model_name.split("/")[0].lower() if "/" in model_name else ""
         self.supports_logprobs = self.is_local or (provider not in NO_LOGPROBS_PROVIDERS)
 
     @staticmethod
-    def _confidence_from_logprobs(response) -> float:
-        token_logprobs = response.choices[0].logprobs.content
-        conf_scores = [math.exp(t.logprob) for t in token_logprobs]
-        return sum(conf_scores) / len(conf_scores)
+    def _confidence_from_logprobs(choice_logprobs) -> float:
+        if not choice_logprobs or getattr(choice_logprobs, 'content', None) is None:
+            return 0.5
+        token_logprobs = choice_logprobs.content
+        conf_scores = [math.exp(getattr(t, 'logprob', 0.0)) for t in token_logprobs]
+        return sum(conf_scores) / len(conf_scores) if conf_scores else 0.5
 
     @staticmethod
-    def _confidence_from_text(response) -> float:
-        text = response.choices[0].message.content or ""
-        match = re.search(r'CONFIDENCE:\s*([0-9]*\.?[0-9]+)', text)
+    def _confidence_from_text(content: str) -> float:
+        match = re.search(r'CONFIDENCE:\s*([0-9]*\.?[0-9]+)', content or "")
         if match:
             return max(0.0, min(1.0, float(match.group(1))))
         return 0.5
 
-    def _process_choice(self, choice) -> Dict[str, Any]:
-        content = choice.message.content or ""
+    @staticmethod
+    def _strip_confidence_line(content: str) -> str:
+        return _CONFIDENCE_LINE_RE.sub('', content or "").rstrip()
 
-        if self.supports_logprobs and hasattr(choice, "logprobs") and choice.logprobs:
+    def _process_choice(self, choice) -> Dict[str, Any]:
+        content = getattr(getattr(choice, "message", None), "content", "") or ""
+
+        if self.supports_logprobs and getattr(choice, "logprobs", None):
             confidence = self._confidence_from_logprobs(choice.logprobs)
             clean_message = content
         else:
@@ -62,26 +72,21 @@ class ModelManager:
             "confidence": confidence,
         }
 
-
-    @staticmethod
-    def _strip_confidence_line(message) -> str:
-        text = message.content if hasattr(message, 'content') else str(message)
-        return _CONFIDENCE_LINE_RE.sub('', text).rstrip()
-
-    def generate_inference(self, prompt: str, max_retries: int = 6, n: int =1,  **kwargs):
-        """
-        Route the prompt to the appropriate API caller based on the initialized model.
-        """
+    def generate_inference(
+        self,
+        prompt: str,
+        max_retries: int = 6,
+        n: int = 1,
+        **kwargs
+    ) -> Union[Dict[str, Any], List[Dict[str, Any]], None]:
         base_wait_time_seconds = 15.0
 
-        # Handle free-tier payload rejection with fallback
         if "max_tokens" not in kwargs:
             kwargs["max_tokens"] = 1024
 
         if not self.supports_logprobs:
             prompt = prompt + CONFIDENCE_SUFFIX
 
-        # If using local vLLM, format model string for OpenAI server if needed
         target_model = self.model_name
         if self.is_local and not target_model.startswith("openai/"):
             target_model = f"openai/{self.model_name}"
@@ -106,17 +111,16 @@ class ModelManager:
 
                 response = litellm.completion(**completion_args)
 
-                results = [self._process_choice(choice) for choice in response.choices]
+                results = [self._process_choice(choice) for choice in getattr(response, "choices", [])]
 
-                return results
+                return results[0] if n == 1 else results
 
             except RateLimitError:
                 if attempt == max_retries - 1:
-                    print(f"max retries reached for {self.model_name}. Skipping prompt")
+                    print(f"Max retries reached for {self.model_name}. Skipping prompt.")
                     return None
-
                 wait_time_seconds = base_wait_time_seconds * (2 ** attempt)
-                print(f"Retrying in {wait_time_seconds}s (Attempt {attempt + 1}/{max_retries})...")
+                print(f"Rate limited. Retrying in {wait_time_seconds}s (Attempt {attempt + 1}/{max_retries})...")
                 time.sleep(wait_time_seconds)
 
             except BadRequestError as e:
