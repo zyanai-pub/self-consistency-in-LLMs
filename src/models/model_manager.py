@@ -1,4 +1,3 @@
-import json
 import math
 import re
 from typing import Dict, Any
@@ -15,18 +14,6 @@ CONFIDENCE_SUFFIX = (
 )
 
 _CONFIDENCE_LINE_RE = re.compile(r'\n?CONFIDENCE:\s*[0-9]*\.?[0-9]+\s*$', re.IGNORECASE)
-
-# Cache management to handle rate limit
-CACHE_FILE = "llm_cache.json"
-if os.path.exists(CACHE_FILE):
-    with open(CACHE_FILE, "r") as f:
-        local_cache = json.load(f)
-else:
-    local_cache = {}
-
-def save_cache():
-    with open(CACHE_FILE, "w") as f:
-        json.dump(local_cache, f, indent=4)
 
 class ModelManager:
     def __init__(self, model_name: str, api_keys: Dict[str, str]):
@@ -76,14 +63,6 @@ class ModelManager:
         """
         Route the prompt to the appropriate API caller based on the initialized model.
         """
-        # Cache management
-        effective_prompt = prompt + CONFIDENCE_SUFFIX if not self.supports_logprobs else prompt
-        cache_key = f"{self.model_name}_{effective_prompt}"
-        if cache_key in local_cache:
-            print(f"loaded from cache for {self.model_name}")
-            return local_cache[cache_key]
-
-
         base_wait_time_seconds = 15.0
 
         # Handle free-tier payload rejection with fallback
@@ -117,9 +96,6 @@ class ModelManager:
                     "message":    clean_message,
                     "confidence": confidence,
                 }
-
-                local_cache[cache_key] = result
-                save_cache()
 
                 return result
 
