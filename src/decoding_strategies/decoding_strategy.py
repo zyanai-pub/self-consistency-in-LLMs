@@ -21,16 +21,24 @@ class DecodingStrategy(ABC):
 
     def generate_paths(self, prompt: str, **kwargs) -> List[Dict[str, Any]]:
         num_samples = kwargs.pop("num_paths", kwargs.pop("num_samples", 5))
+
+        inferences = self.model_manager.generate_inference(
+            f"{prompt}\n\n{ANSWER_SUFFIX}",
+            n = num_samples,
+            **kwargs
+        )
+
+        if not inferences:
+            return []
+
         generated_paths = []
-
-        for _ in range(num_samples):
-            inference = self.model_manager.generate_inference(f"{prompt}\n\n{ANSWER_SUFFIX}", **kwargs)
-            answer = self.extractor.extract_from_text(inference.get('message'))
-            generated_paths.append({'extracted_answer': answer,
-                                    'confidence': inference.get('confidence'),
-                                    'message': inference.get('message')
-                                    })
-
+        for inference in inferences:
+            ans = self.extractor.extract_from_text(inference.get('message'))
+            generated_paths.append({
+                'extracted_answer': ans,
+                'confidence': inference.get('confidence'),
+                'message': inference.get('message')
+            })
         return generated_paths
 
     @abstractmethod

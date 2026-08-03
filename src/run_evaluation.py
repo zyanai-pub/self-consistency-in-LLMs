@@ -18,11 +18,18 @@ from src.models.model_manager import ModelManager
 
 load_dotenv()
 
+
+MODELS = {
+    "qwen-3b": "Qwen/Qwen2.5-3B-Instruct",
+    "llama-3-3b": "meta-llama/Llama-3.2-3B-Instruct"
+}
+"""
 MODELS = {
     #"gemini-flash": "gemini/gemini-2.0-flash-001",
     "groq-llama":   "groq/llama-3.3-70b-versatile",
     "groq-mixtral": "groq/mixtral-8x7b-32768",
 }
+"""
 
 SYSTEM1_MODEL = "groq/llama-3.1-8b-instant"
 
@@ -80,36 +87,31 @@ async def evaluate_single_sample(i: int, item: dict, controller: FrameworkContro
     question = item["question"]
     expected = item["answer"]
 
-    # Use semaphore for rate limit management
-    async with rate_limit_semaphore:
-        await asyncio.sleep(2.1)
+    try:
+        output = await asyncio.to_thread(controller.execute_task, question, strat, **kwargs)
+        prediction = output.get("answer")
+        is_correct = str(prediction).strip() == str(expected).strip()
 
-        try:
-            output = await asyncio.to_thread(controller.execute_task, question, strat, **kwargs)
-            prediction = output.get("answer")
-            is_correct = str(prediction).strip() == str(expected).strip()
+        return {
+            "i": i,
+            "question": question,
+            "prediction": prediction,
+            "expected": expected,
+            "correct": is_correct,
+            "paths_sampled": output.get("paths_sampled"),
+            "time_seconds": output.get("time_seconds")
+        }
 
-            return {
-                "i": i,
-                "question": question,
-                "prediction": prediction,
-                "expected": expected,
-                "correct": is_correct,
-                "paths_sampled": output.get("paths_sampled"),
-                "time_seconds": output.get("time_seconds")
-            }
-
-        except Exception as e:
-            print(f"ERROR on item {i}: {e}")
-            return {
-                "i": i,
-                "question": question,
-                "expected": expected,
-                "prediction": None,
-                "correct": False,
-                "error": str(e)
-            }
-
+    except Exception as e:
+        print(f"ERROR on item {i}: {e}")
+        return {
+            "i": i,
+            "question": question,
+            "expected": expected,
+            "prediction": None,
+            "correct": False,
+            "error": str(e)
+        }
 
 async def run_evaluation_async(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, subset_seed: int = SUBSET_SEED,
                                models: Dict[str, str] = None, strategies: List[str] = None) -> Dict[str, Any]:

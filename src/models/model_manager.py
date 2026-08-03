@@ -1,6 +1,6 @@
 import math
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import os
 import litellm
 from litellm.exceptions import RateLimitError, BadRequestError
@@ -16,8 +16,10 @@ CONFIDENCE_SUFFIX = (
 _CONFIDENCE_LINE_RE = re.compile(r'\n?CONFIDENCE:\s*[0-9]*\.?[0-9]+\s*$', re.IGNORECASE)
 
 class ModelManager:
-    def __init__(self, model_name: str, api_keys: Dict[str, str]):
+    def __init__(self, model_name: str, api_keys: Optional[Dict[str, str]] = None, api_base: Optional[str] = None):
         self.model_name = model_name
+        self.api_base = api_base or os.getenv("VLLM_API_BASE")
+        self.is_local = self.api_base is not None or "localhost" in model_name or "127.0.0.1" in model_name
 
         # groq and gemini, as they are the ones that offer a free tier for developers.
         if "gemini" in api_keys:
@@ -28,8 +30,8 @@ class ModelManager:
         # Disable paid add-ons
         litellm.telemetry = False
 
-        provider = model_name.split("/")[0].lower()
-        self.supports_logprobs = provider not in NO_LOGPROBS_PROVIDERS
+        provider = model_name.split("/")[0].lower() if "/" in model_name else ""
+        self.supports_logprobs = self.is_local or (provider not in NO_LOGPROBS_PROVIDERS)
 
     @staticmethod
     def _confidence_from_logprobs(response) -> float:
@@ -45,13 +47,20 @@ class ModelManager:
             return max(0.0, min(1.0, float(match.group(1))))
         return 0.5
 
-    def _get_message_and_confidence_from_response(self, response) -> tuple[Any, float]:
-        message = response.choices[0].message
-        if self.supports_logprobs:
-            confidence = self._confidence_from_logprobs(response)
+    def _process_choice(self, choice) -> Dict[str, Any]:
+        content = choice.message.content or ""
+
+        if self.supports_logprobs and hasattr(choice, "logprobs") and choice.logprobs:
+            confidence = self._confidence_from_logprobs(choice.logprobs)
+            clean_message = content
         else:
-            confidence = self._confidence_from_text(response)
-        return message, confidence
+            confidence = self._confidence_from_text(content)
+            clean_message = self._strip_confidence_line(content)
+
+        return {
+            "message": clean_message,
+            "confidence": confidence,
+        }
 
 
     @staticmethod
@@ -59,7 +68,7 @@ class ModelManager:
         text = message.content if hasattr(message, 'content') else str(message)
         return _CONFIDENCE_LINE_RE.sub('', text).rstrip()
 
-    def generate_inference(self, prompt: str, max_retries: int = 6, **kwargs) -> dict | None:
+    def generate_inference(self, prompt: str, max_retries: int = 6, n: int =1,  **kwargs):
         """
         Route the prompt to the appropriate API caller based on the initialized model.
         """
@@ -72,32 +81,34 @@ class ModelManager:
         if not self.supports_logprobs:
             prompt = prompt + CONFIDENCE_SUFFIX
 
+        # If using local vLLM, format model string for OpenAI server if needed
+        target_model = self.model_name
+        if self.is_local and not target_model.startswith("openai/"):
+            target_model = f"openai/{self.model_name}"
+
         for attempt in range(max_retries):
             try:
-                time.sleep(2.1)
-                response = litellm.completion(
-                    model=self.model_name,
-                    messages=[{
-                        "role": "user",
-                        "content": prompt
-                    }],
-                    num_retries=1,
-                    logprobs=self.supports_logprobs,
+                if not self.is_local:
+                    time.sleep(2.1)
+
+                completion_args = {
+                    "model": target_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "num_retries": 1,
+                    "n": n,
+                    "logprobs": self.supports_logprobs,
                     **kwargs
-                )
-
-                message, confidence = self._get_message_and_confidence_from_response(response)
-
-                clean_message = message
-                if not self.supports_logprobs:
-                    clean_message = self._strip_confidence_line(clean_message)
-
-                result =  {
-                    "message":    clean_message,
-                    "confidence": confidence,
                 }
 
-                return result
+                if self.api_base:
+                    completion_args["api_base"] = self.api_base
+                    completion_args["api_key"] = "none"
+
+                response = litellm.completion(**completion_args)
+
+                results = [self._process_choice(choice) for choice in response.choices]
+
+                return results
 
             except RateLimitError:
                 if attempt == max_retries - 1:
