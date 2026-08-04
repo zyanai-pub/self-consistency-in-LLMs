@@ -110,7 +110,7 @@ async def evaluate_single_sample(i: int, item: dict, controller: FrameworkContro
     try:
         output = await asyncio.to_thread(controller.execute_task, question, strat, **kwargs)
         prediction = output.get("answer")
-        is_correct = str(prediction).strip() == str(expected).strip()
+        is_correct = AnswerExtractor.answers_are_equal(expected, prediction)
 
         return {
             "i": i,

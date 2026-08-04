@@ -17,6 +17,15 @@ class AnswerExtractor:
         patterns = custom_patterns if custom_patterns else default_patterns
         self.extraction_patterns = [re.compile(pattern, re.IGNORECASE) for pattern in patterns]
 
+    @staticmethod
+    def answers_are_equal(expected: str, prediction: str) -> bool:
+        norm_expected = AnswerExtractor.normalise_format(expected)
+        norm_prediction = AnswerExtractor.normalise_format(prediction)
+
+        if norm_expected is not None and norm_prediction is not None:
+            return norm_expected == norm_prediction
+
+        return (expected or "").strip().lower() == (prediction or "").strip().lower()
 
     def extract_from_text(self, raw_text: str) -> str:
         """
