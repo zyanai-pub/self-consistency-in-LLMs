@@ -18,20 +18,36 @@ from src.models.model_manager import ModelManager
 
 load_dotenv()
 
+EXECUTION_MODE = os.getenv("EXECUTION_MODE", "local")
 
-MODELS = {
-    "qwen-3b": "Qwen/Qwen2.5-3B-Instruct",
-    "llama-3-3b": "meta-llama/Llama-3.2-3B-Instruct"
-}
-"""
-MODELS = {
-    #"gemini-flash": "gemini/gemini-2.0-flash-001",
-    "groq-llama":   "groq/llama-3.3-70b-versatile",
-    "groq-mixtral": "groq/mixtral-8x7b-32768",
-}
-"""
+if EXECUTION_MODE == "local":
+    MODELS = {
+        "qwen-3b": "Qwen/Qwen2.5-3B-Instruct",
+    }
+    # Smaller, faster model for SeerSC budget estimation
+    SYSTEM1_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 
-SYSTEM1_MODEL = "groq/llama-3.1-8b-instant"
+    # Define the two distinct local ports
+    SYS2_API_BASE = "http://localhost:8000/v1"
+    SYS1_API_BASE = "http://localhost:8001/v1"
+
+elif EXECUTION_MODE == "hybrid":
+    MODELS = {
+        "qwen-3b": "Qwen/Qwen2.5-3B-Instruct",
+    }
+    SYSTEM1_MODEL = "groq/llama-3.1-8b-instant"
+
+    SYS2_API_BASE = "http://localhost:8000/v1"
+    SYS1_API_BASE = None  # Groq uses default cloud routing
+
+else:  # "remote"
+    MODELS = {
+        "groq-llama": "groq/llama-3.3-70b-versatile",
+    }
+    SYSTEM1_MODEL = "groq/llama-3.1-8b-instant"
+
+    SYS2_API_BASE = None
+    SYS1_API_BASE = None
 
 STRATEGIES = {"baseline", "esc", "seer", "ralu"}
 
@@ -39,20 +55,26 @@ SUBSET_SIZE = 200
 SUBSET_SEED = 7
 
 STRATEGY_KWARGS = {
-    "baseline": {"num_paths": 10},
-    "esc": {"max_paths": 15, "batch_size": 3, "entropy_threshold": 0.5},
-    "seer": {"m": 5, "n": 15},
-    "ralu": {"num_paths": 5}
+    "baseline": {"num_paths": 10, "temperature": 0.7, "top_p": 0.95},
+    "esc": {"max_paths": 15, "batch_size": 3, "entropy_threshold": 0.5, "temperature": 0.7, "top_p": 0.95},
+    "seer": {"m": 5, "n": 15, "temperature": 0.7, "top_p": 0.95},
+    "ralu": {"num_paths": 5, "temperature": 0.7, "top_p": 0.95}
 }
 
 RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 
-def build_controller(model_name: str, api_keys: Dict[str, str]) -> FrameworkController:
-    model_manager = ModelManager(model_name, api_keys)
-    system1_model_manager = ModelManager(SYSTEM1_MODEL, api_keys)
+
+def build_controller(
+        model_name: str,
+        api_keys: Dict[str, str],
+        sys2_base: str = None,
+        sys1_base: str = None
+) -> FrameworkController:
+    model_manager = ModelManager(model_name, api_keys, api_base=sys2_base)
+
+    system1_model_manager = ModelManager(SYSTEM1_MODEL, api_keys, api_base=sys1_base)
 
     extractor = AnswerExtractor()
-
     consensus_manager = ConsensusManager()
 
     return FrameworkController(
@@ -130,7 +152,12 @@ async def run_evaluation_async(api_keys: Dict[str, str], subset_size: int = SUBS
         print(f"Model: {model_label} ({model_name})\n")
 
         all_res[model_label] = {}
-        controller = build_controller(model_name, api_keys)
+        controller = build_controller(
+            model_name,
+            api_keys,
+            sys2_base=SYS2_API_BASE,
+            sys1_base=SYS1_API_BASE
+        )
 
         for strat in strategies:
             print(f"Strategy: {strat}")
