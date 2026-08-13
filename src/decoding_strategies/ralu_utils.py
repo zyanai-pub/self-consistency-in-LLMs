@@ -1,4 +1,6 @@
 import ast
+import re
+import textwrap
 from typing import Dict, Any, List
 
 from staticfg import CFGBuilder
@@ -58,34 +60,75 @@ _SYNTHESIS_SYSTEM_PROMPT = """\
         Analysis: <brief explanation of how the code follows the reasoning path>
     """
 
+_BRANCH_TYPES = (ast.If, ast.For, ast.While, ast.Try)
+
+_CODE_TAG_RE = re.compile(r"<\s*code\s*>(.*?)<\s*/\s*code\s*>", re.DOTALL | re.IGNORECASE)
+_FENCE_RE = re.compile(r"```(?:python)?\s*(.*?)```", re.DOTALL)
+
+
+def _extract_program(raw_output: str) -> str:
+    if not raw_output:
+        return ""
+
+    match = _CODE_TAG_RE.search(raw_output) or _FENCE_RE.search(raw_output)
+    if match:
+        raw_output = match.group(1)
+
+    return textwrap.dedent(raw_output).strip()
+
+
+def _walk_blocks(cfg) -> List[Any]:
+    roots = [cfg.entryblock]
+    roots += [fn.entryblock for fn in getattr(cfg, "functioncfgs", {}).values()]
+
+    blocks, seen, stack = [], set(), list(roots)
+    while stack:
+        block = stack.pop()
+        if block is None or block.id in seen:
+            continue
+        seen.add(block.id)
+        blocks.append(block)
+        for link in block.exits:
+            stack.append(link.target)
+
+    return sorted(blocks, key=lambda b: b.id)
+
+
+def _block_source(statements: List[ast.stmt]) -> str:
+    parts = []
+    for stmt in statements:
+        source = ast.unparse(stmt)
+        if isinstance(stmt, _BRANCH_TYPES):
+            source = source.splitlines()[0]
+        parts.append(source)
+
+    return "\n".join(parts)
+
 
 def _build_cfg(program: str) -> List[Dict[str, Any]]:
+    program = _extract_program(program)
     if not program:
         return []
 
     try:
         cfg = CFGBuilder().build_from_src(name="ralu_path", src=program)
-    except SyntaxError:
+    except (SyntaxError, ValueError, RecursionError):
         return []
 
-    branch_types = (ast.If, ast.For, ast.While, ast.Try)
-
     nodes = []
-    for block in cfg.blocks:
-        stmts = block.statements
-        if not stmts:
+    for block in _walk_blocks(cfg):
+        statements = block.statements
+        if not statements:
             continue
+
+        last = statements[-1]
         nodes.append({
             'id': block.id,
-            'lines': (stmts[0].lineno, stmts[-1].end_lineno
-            if hasattr(stmts[-1], 'end_lineno')
-            else stmts[-1].lineno),
-            'source': ast.unparse(stmts[0].parent
-                                  if hasattr(stmts[0], 'parent')
-                                  else stmts[0]),
-            'ast_node': stmts[0],
-            'is_branch': any(isinstance(s, branch_types) for s in stmts),
-            'successors': [e.target.id for e in block.exits],
+            'lines': (statements[0].lineno, getattr(last, 'end_lineno', last.lineno)),
+            'source': _block_source(statements),
+            'ast_node': statements[0],
+            'is_branch': any(isinstance(s, _BRANCH_TYPES) for s in statements),
+            'successors': [link.target.id for link in block.exits],
         })
 
     return nodes

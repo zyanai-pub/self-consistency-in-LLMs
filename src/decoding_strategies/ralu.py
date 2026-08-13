@@ -40,11 +40,8 @@ class RaLUSC(DecodingStrategy):
 
             message = model_output.get('message', "")
 
-            result = ""
-            for c in message:
-                if c.isalpha():
-                    result += c
-            if result.lower() == "ok":
+            verdict = "".join(c for c in message if c.isalpha()).lower()
+            if verdict.startswith("ok"):
                 return curr
 
             fix_match = re.search(r'<\s*Fix\s*>(.*?)<\s*/\s*Fix\s*>', message, re.DOTALL | re.IGNORECASE)
@@ -70,18 +67,23 @@ class RaLUSC(DecodingStrategy):
                 reasoning_path_str.append(unit['nl_description'])
             reasoning_path_str.append("")
 
-        synthesis_prompt = f"{_SYNTHESIS_SYSTEM_PROMPT}\n\n{'chr(10)'.join(reasoning_path_str)}\n\nquestion: {prompt}"
+        reasoning_path = "\n".join(reasoning_path_str)
+        synthesis_prompt = (
+            f"{_SYNTHESIS_SYSTEM_PROMPT}\n\n{reasoning_path}\n\nquestion: {prompt}"
+        )
 
         res = self.model_manager.generate_inference(synthesis_prompt, **kwargs)
         return res if res else {"message": "", "confidence": 0.0}
 
-    # ------------------------------------------------------------------
-    # Single RaLU path
-    # ------------------------------------------------------------------
-
     def _generate_ralu_path(self, prompt: str, **kwargs) -> Dict[str, Any]:
-        model_output = self.model_manager.generate_inference(prompt=(_INITIAL_PROGRAM_SYSTEM_PROMPT + f"\n\nProblem: {prompt}"))
-        program = model_output['message']
+        model_output = self.model_manager.generate_inference(
+            prompt=(_INITIAL_PROGRAM_SYSTEM_PROMPT + f"\n\nProblem: {prompt}"),
+            **kwargs
+        )
+        if not model_output:
+            return {'extracted_answer': None, 'confidence': 0.0, 'message': ''}
+
+        program = model_output.get('message', '')
 
         cfg = _build_cfg(program)
 
