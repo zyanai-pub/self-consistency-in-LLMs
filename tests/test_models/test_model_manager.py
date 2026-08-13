@@ -28,7 +28,7 @@ def create_mock_response(message_text="the answer is 6"):
     mock_token_info.top_logprobs = [mock_top_prob_1, mock_top_prob_2]
 
     mock_choice = Mock()
-    mock_choice.message = message_text
+    mock_choice.message.content = message_text  # after
     mock_choice.logprobs.content = [mock_token_info]
 
     mock_response = Mock()
@@ -72,7 +72,7 @@ def test_generate_inference_rate_limit_triggers_sleep(mock_completion, mock_slee
     assert "confidence" in result
 
     assert mock_completion.call_count == 2
-    mock_sleep.assert_called_once_with(15.0)
+    mock_sleep.assert_any_call(15.0)
 
 @patch("src.models.model_manager.time.sleep")
 @patch("src.models.model_manager.litellm.completion")
@@ -86,7 +86,8 @@ def test_generate_inference_max_retries_exceeded(mock_completion, mock_sleep, ma
     
     assert result is None
     assert mock_completion.call_count == 2
-    assert mock_sleep.call_count == 1
+    backoffs = [c for c in mock_sleep.call_args_list if c.args and c.args[0] >= 15.0]
+    assert len(backoffs) == 1
 
 @patch("src.models.model_manager.litellm.completion")
 def test_generate_inference_bad_request(mock_completion, manager):

@@ -24,12 +24,15 @@ class DecodingStrategy(ABC):
 
         inferences = self.model_manager.generate_inference(
             f"{prompt}\n\n{ANSWER_SUFFIX}",
-            n = num_samples,
+            n=num_samples,
             **kwargs
         )
 
         if not inferences:
             return []
+
+        if isinstance(inferences, dict):
+            inferences = [inferences]
 
         generated_paths = []
         for inference in inferences:

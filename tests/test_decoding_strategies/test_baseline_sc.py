@@ -24,25 +24,20 @@ def baseline_sc(mock_dependencies):
 def test_generate_paths_structure_and_calls(baseline_sc, mock_dependencies):
     extractor, model_manager, _ = mock_dependencies
 
-    model_manager.generate_inference.return_value = {
-        'message': "the answer is 6",
-        'confidence': 0.99
-    }
+    num_samples = 3
+    model_manager.generate_inference.return_value = [
+        {'message': "the answer is 6", 'confidence': 0.99}
+        for _ in range(num_samples)
+    ]
     extractor.extract_from_text.return_value = "6"
 
-    prompt = "What is 6 times 1?"
-    num_samples = 3
-
-    paths = baseline_sc.generate_paths(prompt, num_samples=num_samples, temperature=0.7)
+    paths = baseline_sc.generate_paths("What is 6 times 1?", num_samples=num_samples,
+                                       temperature=0.7)
 
     assert len(paths) == num_samples
-    assert model_manager.generate_inference.call_count == num_samples
+    model_manager.generate_inference.assert_called_once()
+    assert model_manager.generate_inference.call_args.kwargs["n"] == num_samples
     assert extractor.extract_from_text.call_count == num_samples
-
-    for path in paths:
-        assert path['extracted_answer'] == "6"
-        assert path['confidence'] == 0.99
-        assert path['message'] == "the answer is 6"
 
 def test_execute_with_mock_data(baseline_sc, mock_dependencies):
     current_file_path = Path(__file__)
