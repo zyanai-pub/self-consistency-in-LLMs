@@ -41,7 +41,7 @@ class RaLUSC(DecodingStrategy):
             message = model_output.get('message', "")
 
             verdict = "".join(c for c in message if c.isalpha()).lower()
-            if verdict.startswith("ok"):
+            if verdict.startswith("ok") or "ok" in verdict[15:]:
                 return curr
 
             fix_match = re.search(r'<\s*Fix\s*>(.*?)<\s*/\s*Fix\s*>', message, re.DOTALL | re.IGNORECASE)

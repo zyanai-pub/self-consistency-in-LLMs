@@ -44,6 +44,7 @@ _ALIGNMENT_SYSTEM_PROMPT = """\
         - First - judge whether the provided unit is **logically** correct. If it is correct, \
     begin your response with 'OK', otherwise begin with 'WRONG'.
         - Second - only when a correction is needed, wrap your fixed unit in `<Fix></Fix>`
+        - Third - Provide a brief explanation of your fix starting with the exact word 'Analysis:'
     """
 
 _SYNTHESIS_SYSTEM_PROMPT = """\
@@ -55,6 +56,7 @@ _SYNTHESIS_SYSTEM_PROMPT = """\
         <code>
         # Python code, return ans
         ...
+        print("Answer:", <result>)
         </code>
 
         Analysis: <brief explanation of how the code follows the reasoning path>
