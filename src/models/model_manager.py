@@ -3,6 +3,7 @@ import os
 import re
 import time
 from typing import Any, Dict, List, Optional, Union
+import threading
 
 import litellm
 from litellm.exceptions import BadRequestError, RateLimitError
@@ -35,8 +36,34 @@ class ModelManager:
 
         litellm.telemetry = False
 
+        # For metric tracking
+        self._usage_lock = threading.Lock()
+        self.requests = 0
+        self.errors = 0
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.latencies = []
+
         provider = model_name.split("/")[0].lower() if "/" in model_name else ""
         self.supports_logprobs = self.is_local or (provider not in NO_LOGPROBS_PROVIDERS)
+
+    def reset_usage(self) -> None:
+        self.requests = 0
+        self.errors = 0
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.latencies = []
+
+    def _record(self, response, latency: float, failed: bool = False) -> None:
+        usage = getattr(response, "usage", None)
+        with self._usage_lock:
+            self.requests += 1
+            self.latencies.append(latency)
+            if failed:
+                self.errors += 1
+            else:
+                self.prompt_tokens += int(getattr(usage, "prompt_tokens", 0) or 0)
+                self.completion_tokens += int(getattr(usage, "completion_tokens", 0) or 0)
 
     @staticmethod
     def _confidence_from_logprobs(choice_logprobs) -> float:
@@ -92,6 +119,7 @@ class ModelManager:
             target_model = f"openai/{self.model_name}"
 
         for attempt in range(max_retries):
+            t0 = time.perf_counter()
             try:
                 if not self.is_local:
                     time.sleep(2.1)
@@ -110,12 +138,14 @@ class ModelManager:
                     completion_args["api_key"] = "none"
 
                 response = litellm.completion(**completion_args)
+                self._record(response, time.perf_counter() - t0)
 
                 results = [self._process_choice(choice) for choice in getattr(response, "choices", [])]
 
                 return results[0] if n == 1 else results
 
             except RateLimitError:
+                self._record(None, time.perf_counter() - t0, failed=True)
                 if attempt == max_retries - 1:
                     print(f"Max retries reached for {self.model_name}. Skipping prompt.")
                     return None
@@ -124,6 +154,7 @@ class ModelManager:
                 time.sleep(wait_time_seconds)
 
             except BadRequestError as e:
+                self._record(None, time.perf_counter() - t0, failed=True)
                 print(f"Invalid context or param for {self.model_name}: {e}")
                 return None
 

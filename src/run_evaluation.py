@@ -1,16 +1,13 @@
 import json
 import os
-import sys
 from datetime import datetime
 from typing import Dict, List, Any
 from dotenv import load_dotenv
 import asyncio
+import time
 
-
+from src import metrics_calculator
 from src.evaluation_module.consensus import ConsensusManager
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
 from src.controller.framework_controller import FrameworkController
 from src.input_layer.benchmark_loader import BenchmarkLoader
 from src.evaluation_module.extractor import AnswerExtractor
@@ -49,7 +46,7 @@ else:  # "remote"
     SYS2_API_BASE = None
     SYS1_API_BASE = None
 
-STRATEGIES = {"baseline", "esc", "seer", "ralu"}
+STRATEGIES = ["baseline", "esc", "seer", "ralu"]
 
 SUBSET_SIZE = 200
 SUBSET_SEED = 7
@@ -84,24 +81,6 @@ def build_controller(
         system1_model_manager=system1_model_manager
     )
 
-def print_summary_table(summary: Dict[str, Any]) -> None:
-    print("\nSummary:")
-    models = list(summary.keys())
-
-    for model in models:
-        print(f"{model}:")
-
-    print()
-
-    strategies = list(next(iter(summary.values())).keys())
-
-    for strategy in strategies:
-        print(f"{strategy}:")
-        for model in models:
-            acc = summary[model][strategy]["accuracy"]
-            print(f"{acc}")
-        print()
-
 
 async def evaluate_single_sample(i: int, item: dict, controller: FrameworkController, strat: str, kwargs: dict) -> dict:
     question = item["question"]
@@ -119,7 +98,8 @@ async def evaluate_single_sample(i: int, item: dict, controller: FrameworkContro
             "expected": expected,
             "correct": is_correct,
             "paths_sampled": output.get("paths_sampled"),
-            "time_seconds": output.get("time_seconds")
+            "time_seconds": output.get("time_seconds"),
+            "entropy": output.get("entropy", output.get("system1_entropy"))
         }
 
     except Exception as e:
@@ -133,6 +113,7 @@ async def evaluate_single_sample(i: int, item: dict, controller: FrameworkContro
             "error": str(e)
         }
 
+
 async def run_evaluation_async(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, subset_seed: int = SUBSET_SEED,
                                models: Dict[str, str] = None, strategies: List[str] = None) -> Dict[str, Any]:
     strategies = strategies or STRATEGIES
@@ -142,6 +123,7 @@ async def run_evaluation_async(api_keys: Dict[str, str], subset_size: int = SUBS
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     all_res = {}
+    metrics_rows = []
 
     print("Loading GSM8K subset...")
     loader = BenchmarkLoader()
@@ -163,24 +145,21 @@ async def run_evaluation_async(api_keys: Dict[str, str], subset_size: int = SUBS
             print(f"Strategy: {strat}")
             kwargs = STRATEGY_KWARGS[strat]
 
-            tasks = [
-                evaluate_single_sample(i, item, controller, strat, kwargs)
-                for i, item in enumerate(subset)
-            ]
+            sys2, sys1 = controller.model_manager, controller.system1_model_manager
+            sys2.reset_usage()
+            sys1.reset_usage()
+            t0 = time.perf_counter()
 
-            strat_res = await asyncio.gather(*tasks)
-            strat_res = sorted(strat_res, key=lambda x: x["i"])
+            tasks = [evaluate_single_sample(i, item, controller, strat, kwargs)
+                     for i, item in enumerate(subset)]
+            strat_res = sorted(await asyncio.gather(*tasks), key=lambda x: x["i"])
 
-            correct = sum(1 for res in strat_res if res.get("correct", False))
-            accuracy = correct / len(subset)
-            print(f"Overall accuracy for {strat}: {accuracy}\n")
+            wall = time.perf_counter() - t0
+            m = metrics_calculator.compute_metrics(model_label, strat, strat_res, sys2, sys1, wall)
+            metrics_rows.append(m)
+            print(f"acc={m['accuracy']}  tokens/sample={m['total_tokens_per_sample']}\n")
 
-            all_res[model_label][strat] = {
-                "accuracy": accuracy,
-                "correct": correct,
-                "total": len(subset),
-                "results": strat_res
-            }
+            all_res[model_label][strat] = {**m, "results": strat_res}
 
             checkpoint_path = os.path.join(
                 RESULTS_DIR,
@@ -189,24 +168,9 @@ async def run_evaluation_async(api_keys: Dict[str, str], subset_size: int = SUBS
             with open(checkpoint_path, "w") as f:
                 json.dump(all_res[model_label][strat], f)
 
-        sum_path = os.path.join(RESULTS_DIR, f"{run_id}_summary.json")
-
-        summary = {
-            model: {
-                strategy: {
-                    "accuracy": all_res[model][strategy]["accuracy"],
-                    "correct": all_res[model][strategy]["correct"],
-                    "total": all_res[model][strategy]["total"],
-                }
-                for strategy in all_res[model]
-            }
-            for model in all_res
-        }
-        with open(sum_path, "w") as f:
-            json.dump(summary, f, indent=4)
-            print(f"Saved summary at {sum_path}")
-
-        print_summary_table(summary)
+    metrics_calculator.print_metrics_table(metrics_rows)
+    metrics_calculator.write_metrics(metrics_rows, os.path.join(RESULTS_DIR, f"{run_id}_summary_metrics"))
+    print(f"Saved metrics at {RESULTS_DIR}")
 
     return all_res
 
@@ -216,6 +180,7 @@ def run_evaluation(api_keys: Dict[str, str], subset_size: int = SUBSET_SIZE, sub
     # Entry point wrapper to run the async loop
     asyncio.run(run_evaluation_async(api_keys, subset_size, subset_seed, models, strategies))
 
+
 if __name__ == "__main__":
     api_keys = {
         "gemini": os.environ.get("GOOGLE_API_KEY", ""),
@@ -223,6 +188,3 @@ if __name__ == "__main__":
     }
 
     run_evaluation(api_keys)
-
-
-

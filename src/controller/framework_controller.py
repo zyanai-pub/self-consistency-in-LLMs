@@ -18,6 +18,7 @@ class FrameworkController:
         self.extractor = extractor
         self.consensus_builder = consensus_builder
         self.model_manager = model_manager
+        self.system1_model_manager = system1_model_manager
         self.baseline_sc = BaselineSC(self.extractor, self.model_manager, self.consensus_builder)
         self.esc = EarlyStoppingSC(self.extractor, self.model_manager, self.consensus_builder)
         self.seer_sc = SeerSC(
